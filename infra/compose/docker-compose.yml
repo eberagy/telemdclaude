@@ -71,6 +71,7 @@ services:
       - agentops-api
     environment:
       NEXT_PUBLIC_AGENTOPS_API_URL: ${AGENTOPS_API_INTERNAL_URL:-http://agentops-api:4000}
+      AGENTOPS_ADMIN_SECRET: ${AGENTOPS_ADMIN_SECRET}
       NODE_ENV: production
     ports:
       - "4001:4001"

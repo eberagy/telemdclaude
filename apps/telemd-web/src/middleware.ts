@@ -6,6 +6,8 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/pricing",
   "/demo",
+  "/terms",
+  "/privacy",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/book/(.*)",
@@ -13,22 +15,37 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks/(.*)",
 ]);
 
+const ROLE_HOME: Record<string, string> = {
+  Patient: "/patient/appointments",
+  Clinician: "/clinician/schedule",
+  Staff: "/staff/schedule",
+  PracticeOwner: "/owner/billing",
+  PlatformAdmin: "/owner/billing",
+};
+
 // Route role requirements
 const isPatientRoute = createRouteMatcher(["/patient/(.*)"]);
 const isClinicianRoute = createRouteMatcher(["/clinician/(.*)"]);
 const isStaffRoute = createRouteMatcher(["/staff/(.*)"]);
 const isOwnerRoute = createRouteMatcher(["/owner/(.*)"]);
 
-export default clerkMiddleware(async (auth, req) => {
-  if (isPublicRoute(req)) return;
+const isLandingRoute = createRouteMatcher(["/", "/pricing", "/demo"]);
 
+export default clerkMiddleware(async (auth, req) => {
   const { userId, sessionClaims } = await auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  // Redirect authenticated users away from landing/marketing to their portal
+  if (userId && role && isLandingRoute(req)) {
+    const home = ROLE_HOME[role] ?? "/";
+    return NextResponse.redirect(new URL(home, req.url));
+  }
+
+  if (isPublicRoute(req)) return;
 
   if (!userId) {
     return NextResponse.redirect(new URL("/sign-in", req.url));
   }
-
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   // New users without a role → send to onboarding
   if (!role) {
