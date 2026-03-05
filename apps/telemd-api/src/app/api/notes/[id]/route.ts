@@ -8,6 +8,51 @@ interface RouteParams {
   params: Promise<{ id: string }>; // appointmentId
 }
 
+// GET /api/notes/[appointmentId] — Load note content for the editor
+export async function GET(req: NextRequest, { params }: RouteParams) {
+  try {
+    const { id: appointmentId } = await params;
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      select: { practiceId: true },
+    });
+    if (!appointment) {
+      return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+    }
+
+    await requirePHIAccess(appointment.practiceId, appointmentId);
+
+    const note = await prisma.clinicianNote.findUnique({
+      where: { appointmentId },
+      select: {
+        id: true,
+        subjective: true,
+        objective: true,
+        assessment: true,
+        plan: true,
+        freeText: true,
+        status: true,
+        signedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return NextResponse.json({ note });
+  } catch (err) {
+    if (err instanceof AuthorizationError) {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
+    console.error("[notes GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 // POST /api/notes/[appointmentId] — Create or update clinician note
 export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
