@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ interface InviteEntry {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { user } = useUser();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [practiceId, setPracticeId] = useState<string | null>(null);
@@ -74,6 +76,8 @@ export default function OnboardingPage() {
       return;
     }
     setPracticeId(data.practiceId);
+    // Reload Clerk session so new PracticeOwner role is in the JWT immediately
+    await user?.reload().catch(() => {});
     setStep(1);
     setSaving(false);
   };
