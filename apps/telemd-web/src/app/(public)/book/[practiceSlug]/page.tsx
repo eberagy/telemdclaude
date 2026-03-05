@@ -87,7 +87,7 @@ export default function BookingPage({
       .then((r) => r.json())
       .then((data) => {
         setPractice(data.practice);
-        setApptTypes(data.appointmentTypes ?? []);
+        setApptTypes(data.practice?.appointmentTypes ?? []);
         setLoading(false);
       });
   }, [practiceSlug]);
@@ -112,6 +112,12 @@ export default function BookingPage({
 
     const result = await res.json();
     setSubmitting(false);
+
+    if (res.status === 401) {
+      // Not signed in — redirect to sign-in with return URL
+      window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
+      return;
+    }
 
     if (res.ok) {
       // Redirect to payment
