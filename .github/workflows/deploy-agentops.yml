@@ -1,0 +1,32 @@
+name: Deploy AgentOps to VPS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/agentops-api/**'
+      - 'apps/agentops-ui/**'
+      - 'services/agentops-worker/**'
+      - 'infra/compose/**'
+      - 'packages/shared/**'
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 187.77.21.138
+          username: ragy
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/agentops
+            git pull origin main || true
+            docker compose --profile agentops pull
+            docker compose --profile agentops up -d --build
+            docker compose --profile agentops exec -T agentops-api npx prisma migrate deploy || true
+            echo "Deploy complete at $(date)"

@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { PrismaClient } from "@prisma/client";
 import { sendDailyBrief } from "../integrations/slack.js";
+import { sendWeeklyCostReport } from "./cost-report.js";
 
 const prisma = new PrismaClient();
 
@@ -59,6 +60,16 @@ export function setupScheduledJobs() {
       console.log(`[scheduler] Expired ${expired.count} approval requests`);
     }
   });
+
+  // Weekly cost report every Monday at 9 AM Eastern
+  cron.schedule(
+    "0 9 * * 1",
+    async () => {
+      console.log("[scheduler] Sending weekly cost report...");
+      await sendWeeklyCostReport();
+    },
+    { timezone: "America/New_York" }
+  );
 
   console.log("[scheduler] Scheduled jobs configured");
 }

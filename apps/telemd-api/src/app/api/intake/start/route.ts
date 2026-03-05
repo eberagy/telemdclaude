@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { LIMITS } from "@/lib/ratelimit";
 
 const RETELL_API_KEY = process.env.RETELL_API_KEY!;
 const RETELL_AGENT_ID = process.env.RETELL_AGENT_ID!;
@@ -14,6 +15,15 @@ export async function POST(req: NextRequest) {
     }
 
     const { appointmentId } = await req.json();
+
+    // Rate limit: max 3 intake calls per user per hour (Retell costs money)
+    const rl = LIMITS.intakeStart(userId);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many intake attempts. Please wait before trying again." },
+        { status: 429 }
+      );
+    }
 
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
