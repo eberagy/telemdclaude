@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/onboarding/(.*)",        // practice creation (newly signed-up owner)
   "/api/demo-request",           // public lead capture form
   "/api/practices/(.*)",         // booking flow: public practice + appointment type info
+  "/api/invites/(.*)",           // GET invite preview (public), POST requires auth (handled inline)
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

@@ -83,7 +83,35 @@ export async function POST(req: NextRequest) {
       resourceId: invite.id,
     });
 
-    // TODO: send invite email via Postmark with invite.token
+    // Send invite email via Postmark
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const inviteUrl = `${appUrl}/invites/${invite.token}`;
+    const postmarkToken = process.env.POSTMARK_API_KEY;
+    const practice = await prisma.practice.findUnique({ where: { id: owner.practiceId }, select: { name: true } });
+
+    if (postmarkToken) {
+      await fetch("https://api.postmarkapp.com/email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Postmark-Server-Token": postmarkToken,
+        },
+        body: JSON.stringify({
+          From: "noreply@telemd.health",
+          To: email,
+          Subject: `You're invited to join ${practice?.name ?? "a TeleMD practice"}`,
+          HtmlBody: `
+            <p>You have been invited to join <strong>${practice?.name}</strong> on TeleMD as a <strong>${role}</strong>.</p>
+            <p><a href="${inviteUrl}" style="background:#2563eb;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:12px;">Accept Invite</a></p>
+            <p style="color:#6b7280;font-size:12px;">This invite expires ${expiresAt.toLocaleDateString()}. If you did not expect this, you can ignore this email.</p>
+          `,
+          TextBody: `You've been invited to join ${practice?.name} on TeleMD as a ${role}.\n\nAccept here: ${inviteUrl}\n\nExpires: ${expiresAt.toLocaleDateString()}`,
+          Tag: "team-invite",
+        }),
+      }).catch((err) => console.error("[team invite] Postmark failed:", err));
+    } else {
+      console.log(`[team invite] INVITE_URL: ${inviteUrl}`);
+    }
 
     return NextResponse.json({ invite: { id: invite.id, email, role, expiresAt } }, { status: 201 });
   } catch (err) {
