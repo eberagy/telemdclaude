@@ -12,7 +12,10 @@
     "db:migrate:prod": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
@@ -25,6 +28,7 @@
     "next": "^14.2.0",
     "nodemailer": "^6.9.0",
     "postmark": "^4.0.0",
+    "@react-pdf/renderer": "^3.4.0",
     "stripe": "^16.0.0",
     "svix": "^1.21.0",
     "tsx": "^4.0.0",
@@ -34,7 +38,9 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/nodemailer": "^6.4.0",
+    "@vitest/coverage-v8": "^1.6.0",
     "prisma": "^5.15.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
   }
 }
