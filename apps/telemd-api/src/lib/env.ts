@@ -28,6 +28,8 @@ const optional = [
   "SENTRY_DSN",
   "REDIS_URL",
   "NEXT_PUBLIC_APP_URL",
+  "RETELL_WEBHOOK_SECRET",
+  "DEMO_REQUEST_EMAIL",
 ] as const;
 
 let validated = false;
