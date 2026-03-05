@@ -9,6 +9,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/book/(.*)",
+  "/onboarding(.*)",
   "/api/webhooks/(.*)",
 ]);
 
@@ -28,6 +29,11 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  // New users without a role → send to onboarding
+  if (!role) {
+    return NextResponse.redirect(new URL("/onboarding", req.url));
+  }
 
   // Role-based route guards
   if (isPatientRoute(req) && role !== "Patient" && role !== "PlatformAdmin") {
