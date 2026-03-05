@@ -1,0 +1,176 @@
+version: "3.9"
+
+services:
+  # ============================================================
+  # Infrastructure
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: telemd
+      POSTGRES_USER: telemd
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-telemd_secret_change_me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telemd"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # AgentOps Services (VPS only)
+  # ============================================================
+  agentops-api:
+    build:
+      context: ../../apps/agentops-api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      AGENTOPS_DATABASE_URL: postgresql://telemd:${POSTGRES_PASSWORD:-telemd_secret_change_me}@postgres:5432/agentops
+      REDIS_URL: redis://redis:6379
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID}
+      SLACK_ALERTS_CHANNEL_ID: ${SLACK_ALERTS_CHANNEL_ID:-}
+      AGENTOPS_ADMIN_SECRET: ${AGENTOPS_ADMIN_SECRET}
+      AGENTOPS_PUBLIC_URL: ${AGENTOPS_PUBLIC_URL:-http://localhost:4001}
+      NODE_ENV: production
+    ports:
+      - "4000:4000"
+    profiles:
+      - agentops
+
+  agentops-ui:
+    build:
+      context: ../../apps/agentops-ui
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - agentops-api
+    environment:
+      NEXT_PUBLIC_AGENTOPS_API_URL: ${AGENTOPS_API_INTERNAL_URL:-http://agentops-api:4000}
+      NODE_ENV: production
+    ports:
+      - "4001:4001"
+    profiles:
+      - agentops
+
+  agentops-worker:
+    build:
+      context: ../../services/agentops-worker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      AGENTOPS_DATABASE_URL: postgresql://telemd:${POSTGRES_PASSWORD:-telemd_secret_change_me}@postgres:5432/agentops
+      REDIS_URL: redis://redis:6379
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID}
+      SLACK_ALERTS_CHANNEL_ID: ${SLACK_ALERTS_CHANNEL_ID:-}
+      AGENTOPS_PUBLIC_URL: ${AGENTOPS_PUBLIC_URL:-http://localhost:4001}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      GITHUB_OWNER: ${GITHUB_OWNER}
+      GITHUB_REPO: ${GITHUB_REPO:-telemd-monorepo}
+      TELEMD_API_URL: ${TELEMD_API_URL}
+      NODE_ENV: production
+    profiles:
+      - agentops
+
+  # ============================================================
+  # Reverse Proxy (Caddy)
+  # ============================================================
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - agentops-api
+      - agentops-ui
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-}
+    profiles:
+      - agentops
+
+  # ============================================================
+  # Local Dev: TeleMD API + Web
+  # ============================================================
+  telemd-api:
+    build:
+      context: ../../apps/telemd-api
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://telemd:${POSTGRES_PASSWORD:-telemd_secret_change_me}@postgres:5432/telemd
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      RETELL_API_KEY: ${RETELL_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      NODE_ENV: development
+    ports:
+      - "3001:3001"
+    volumes:
+      - ../../apps/telemd-api:/app
+      - /app/node_modules
+    profiles:
+      - local
+
+  telemd-web:
+    build:
+      context: ../../apps/telemd-web
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    depends_on:
+      - telemd-api
+    environment:
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../apps/telemd-web:/app
+      - /app/node_modules
+    profiles:
+      - local
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

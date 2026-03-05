@@ -1,0 +1,27 @@
+{
+  "name": "agentops-api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 4000",
+    "build": "next build",
+    "start": "next start --port 4000",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "@octokit/rest": "^21.0.0",
+    "@slack/web-api": "^7.0.0",
+    "@telemd/shared": "workspace:*",
+    "bull": "^4.12.0",
+    "next": "^14.2.0",
+    "prisma": "^5.15.0",
+    "@prisma/client": "^5.15.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}

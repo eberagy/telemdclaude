@@ -1,0 +1,554 @@
+// ============================================================
+// TeleMD Prisma Schema
+// Database: PostgreSQL
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  PlatformAdmin
+  PracticeOwner
+  Clinician
+  Staff
+  Patient
+}
+
+enum AppointmentStatus {
+  PENDING_PAYMENT
+  PAYMENT_FAILED
+  CONFIRMED
+  INTAKE_PENDING
+  INTAKE_COMPLETED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+  NO_SHOW
+}
+
+enum IntakeStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum SeatStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum ZoomSessionStatus {
+  NOT_STARTED
+  ACTIVE
+  ENDED
+}
+
+enum MessageSenderRole {
+  Patient
+  Staff
+  Clinician
+  System
+}
+
+enum AuditEventType {
+  VIEW_PATIENT_RECORD
+  VIEW_TRANSCRIPT
+  VIEW_AI_SUMMARY
+  GENERATE_AI_SUMMARY
+  EDIT_NOTE
+  SIGN_NOTE
+  EXPORT_PDF
+  UPLOAD_FILE
+  DOWNLOAD_FILE
+  START_VISIT
+  JOIN_VISIT
+  MESSAGE_SENT
+  PATIENT_ATTESTATION
+  LOGIN
+  INVITE_SENT
+  SEAT_ACTIVATED
+  SEAT_DEACTIVATED
+}
+
+enum NoteStatus {
+  DRAFT
+  SIGNED
+}
+
+// ============================================================
+// PRACTICE (Tenant root)
+// ============================================================
+
+model Practice {
+  id           String @id @default(cuid())
+  name         String
+  slug         String @unique
+  serviceState String @default("PA")
+  logoUrl      String?
+  timezone     String @default("America/New_York")
+
+  // Stripe for practice subscription billing
+  stripeCustomerId String? @unique
+  stripeAccountId  String? // connected account for patient payments
+
+  // Risk controls & policy settings
+  emergencyDisclaimerText  String @default("If you are experiencing a medical emergency, call 911 immediately.")
+  notTriageBannerText      String @default("This service does not provide emergency triage. Call 911 for emergencies.")
+  messagingDisclaimerText  String @default("Do not use messaging for emergencies. Call 911.")
+  afterVisitSummaryVisible Boolean @default(false)
+  intakeFieldMinimization  Boolean @default(true)
+  reschedulePolicyText     String @default("Reschedules allowed up to 24 hours before appointment.")
+  cancelPolicyText         String @default("Cancellations allowed up to 24 hours before appointment.")
+  patientAttestationText   String @default("I am located in Pennsylvania at the time of the visit.")
+
+  // Cancellation/reschedule hours
+  cancelWindowHours     Int @default(24)
+  rescheduleWindowHours Int @default(24)
+
+  // Relations
+  members          PracticeMember[]
+  appointmentTypes AppointmentType[]
+  appointments     Appointment[]
+  intakeTemplates  IntakeTemplate[]
+  messages         Message[]
+  evidenceLinks    EvidenceLink[]
+  auditLogs        AuditLog[]
+  invites          PracticeInvite[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// PRACTICE MEMBER (links Clerk user to practice + role)
+// ============================================================
+
+model PracticeMember {
+  id         String @id @default(cuid())
+  practiceId String
+  clerkUserId String
+  role       UserRole
+  email      String
+  firstName  String @default("")
+  lastName   String @default("")
+  isActive   Boolean @default(true)
+
+  practice   Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  clinician  ClinicianProfile? // only if role=Clinician
+  auditLogs  AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([practiceId, clerkUserId])
+  @@unique([practiceId, email])
+  @@index([clerkUserId])
+}
+
+// ============================================================
+// PRACTICE INVITE
+// ============================================================
+
+model PracticeInvite {
+  id         String @id @default(cuid())
+  practiceId String
+  email      String
+  role       UserRole
+  token      String @unique @default(cuid())
+  expiresAt  DateTime
+  usedAt     DateTime?
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([email])
+}
+
+// ============================================================
+// CLINICIAN PROFILE
+// ============================================================
+
+model ClinicianProfile {
+  id             String @id @default(cuid())
+  memberId       String @unique
+  npi            String?
+  licensedStates String[] // must include "PA"
+  specialty      String?
+  bio            String?
+  bufferMinutes  Int    @default(10)
+
+  // Seat subscription
+  seatStatus              SeatStatus @default(PENDING)
+  stripeSubscriptionId    String?    @unique
+  stripeSubscriptionItemId String?
+  seatActivatedAt         DateTime?
+  seatDeactivatedAt       DateTime?
+
+  member            PracticeMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  availabilityBlocks AvailabilityBlock[]
+  dateOverrides      DateOverride[]
+  appointments       Appointment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberId])
+}
+
+// ============================================================
+// AVAILABILITY
+// ============================================================
+
+model AvailabilityBlock {
+  id          String @id @default(cuid())
+  clinicianId String
+  dayOfWeek   Int    // 0=Sun, 1=Mon, ... 6=Sat
+  startTime   String // "09:00"
+  endTime     String // "17:00"
+
+  clinician ClinicianProfile @relation(fields: [clinicianId], references: [id], onDelete: Cascade)
+
+  @@index([clinicianId])
+}
+
+model DateOverride {
+  id          String  @id @default(cuid())
+  clinicianId String
+  date        String  // "YYYY-MM-DD"
+  available   Boolean @default(false)
+  startTime   String? // null if unavailable all day
+  endTime     String?
+  reason      String?
+
+  clinician ClinicianProfile @relation(fields: [clinicianId], references: [id], onDelete: Cascade)
+
+  @@index([clinicianId, date])
+}
+
+// ============================================================
+// APPOINTMENT TYPE
+// ============================================================
+
+model AppointmentType {
+  id               String @id @default(cuid())
+  practiceId       String
+  name             String
+  description      String?
+  durationMinutes  Int
+  priceInCents     Int
+  isActive         Boolean @default(true)
+  intakeTemplateId String?
+
+  practice        Practice        @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  intakeTemplate  IntakeTemplate? @relation(fields: [intakeTemplateId], references: [id])
+  appointments    Appointment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([practiceId])
+}
+
+// ============================================================
+// INTAKE TEMPLATE
+// ============================================================
+
+model IntakeTemplate {
+  id         String @id @default(cuid())
+  practiceId String
+  name       String
+  fields     Json   // Array of IntakeField objects
+
+  practice        Practice          @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  appointmentTypes AppointmentType[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([practiceId])
+}
+
+// ============================================================
+// PATIENT PROFILE (linked to Clerk user)
+// ============================================================
+
+model PatientProfile {
+  id          String @id @default(cuid())
+  clerkUserId String @unique
+  email       String @unique
+  phone       String?
+  dateOfBirth String? // stored as string to minimize PHI footprint
+  state       String @default("PA")
+  isActive    Boolean @default(true)
+
+  appointments Appointment[]
+  messages     Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clerkUserId])
+  @@index([email])
+}
+
+// ============================================================
+// APPOINTMENT (core entity)
+// ============================================================
+
+model Appointment {
+  id                String            @id @default(cuid())
+  practiceId        String
+  clinicianId       String
+  patientId         String
+  appointmentTypeId String
+  status            AppointmentStatus @default(PENDING_PAYMENT)
+
+  // Scheduling
+  slotStart DateTime
+  slotEnd   DateTime
+  timezone  String @default("America/New_York")
+
+  // PA Gating
+  paAttestationAt DateTime?
+
+  // Stripe
+  stripePaymentIntentId String? @unique
+  stripeCheckoutSessionId String? @unique
+  paidAt              DateTime?
+  refundedAt          DateTime?
+  refundId            String?
+  amountPaidCents     Int @default(0)
+
+  // Retell Intake
+  retellCallId    String?
+  intakeStatus    IntakeStatus @default(NOT_STARTED)
+  intakeStartedAt DateTime?
+  intakeCompletedAt DateTime?
+  transcriptRaw   String? // raw transcript text (PHI — never log)
+  transcriptStorageKey String? // S3 key if stored there
+
+  // AI SOAP Summary (stored after generation)
+  soapSummaryId String? @unique
+
+  // Zoom Session
+  zoomSessionId     String?
+  zoomSessionStatus ZoomSessionStatus @default(NOT_STARTED)
+  visitStartedAt    DateTime?
+  visitEndedAt      DateTime?
+
+  // Cancellation/Reschedule
+  cancelledAt        DateTime?
+  cancelledBy        String?
+  cancellationReason String?
+  rescheduledFromId  String?
+
+  // Patient notes at booking
+  patientNotes String?
+
+  // Relations
+  practice         Practice         @relation(fields: [practiceId], references: [id])
+  clinician        ClinicianProfile @relation(fields: [clinicianId], references: [id])
+  patient          PatientProfile   @relation(fields: [patientId], references: [id])
+  appointmentType  AppointmentType  @relation(fields: [appointmentTypeId], references: [id])
+  soapSummary      SOAPSummary?     @relation(fields: [soapSummaryId], references: [id])
+  clinicianNote    ClinicianNote?
+  messages         Message[]
+  uploads          FileUpload[]
+  auditLogs        AuditLog[]
+  reminders        Reminder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Prevent double-booking: same clinician cannot have overlapping slot starts
+  @@unique([clinicianId, slotStart])
+  @@index([practiceId, slotStart])
+  @@index([patientId])
+  @@index([status])
+}
+
+// ============================================================
+// SOAP SUMMARY (AI-generated)
+// ============================================================
+
+model SOAPSummary {
+  id          String @id @default(cuid())
+  subjective  String
+  objective   String
+  assessment  String
+  plan        String
+  missingInfo Json   // String[]
+  redFlags    Json   // String[] — clinician-only
+  disclaimer  String @default("AI-generated summary. Clinician must verify all information before acting.")
+  generatedAt DateTime @default(now())
+  modelUsed   String?
+
+  appointment Appointment?
+
+  @@index([id])
+}
+
+// ============================================================
+// CLINICIAN NOTE
+// ============================================================
+
+model ClinicianNote {
+  id            String     @id @default(cuid())
+  appointmentId String     @unique
+  clinicianId   String
+  status        NoteStatus @default(DRAFT)
+
+  subjective String?
+  objective  String?
+  assessment String?
+  plan       String?
+  freeText   String?
+
+  signedAt   DateTime?
+  exportedAt DateTime?
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clinicianId])
+}
+
+// ============================================================
+// MESSAGING
+// ============================================================
+
+model Message {
+  id            String            @id @default(cuid())
+  practiceId    String
+  appointmentId String?
+  patientId     String
+  senderRole    MessageSenderRole
+  senderUserId  String
+  content       String
+  isClinicalFlag Boolean @default(false) // staff flagged for clinician review
+  readAt        DateTime?
+
+  practice    Practice        @relation(fields: [practiceId], references: [id])
+  appointment Appointment?    @relation(fields: [appointmentId], references: [id])
+  patient     PatientProfile  @relation(fields: [patientId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([practiceId, patientId])
+  @@index([appointmentId])
+}
+
+// ============================================================
+// FILE UPLOADS
+// ============================================================
+
+model FileUpload {
+  id            String @id @default(cuid())
+  appointmentId String
+  uploadedBy    String // clerkUserId
+  fileName      String
+  storageKey    String // S3 key
+  mimeType      String
+  sizeBytes     Int
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([appointmentId])
+}
+
+// ============================================================
+// REMINDERS
+// ============================================================
+
+model Reminder {
+  id            String    @id @default(cuid())
+  appointmentId String
+  type          String    // "EMAIL_24H", "SMS_24H", "EMAIL_1H", "SMS_1H"
+  scheduledAt   DateTime
+  sentAt        DateTime?
+  failed        Boolean   @default(false)
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledAt, sentAt])
+}
+
+// ============================================================
+// EVIDENCE PANEL
+// ============================================================
+
+model EvidenceLink {
+  id         String @id @default(cuid())
+  practiceId String
+  title      String
+  url        String?
+  snippet    String?
+  tags       String[]
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([practiceId])
+}
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id          String         @id @default(cuid())
+  practiceId  String
+  memberId    String?        // who performed the action
+  clerkUserId String
+  eventType   AuditEventType
+  resourceId  String?        // e.g., appointmentId, patientId
+  resourceType String?
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?          // scrubbed non-PHI context
+
+  practice Practice        @relation(fields: [practiceId], references: [id])
+  member   PracticeMember? @relation(fields: [memberId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([practiceId, createdAt])
+  @@index([clerkUserId])
+  @@index([eventType])
+}
+
+// ============================================================
+// SLOT LOCK (distributed, prevents double-booking)
+// ============================================================
+
+model SlotLock {
+  id          String   @id @default(cuid())
+  clinicianId String
+  slotStart   DateTime
+  lockedBy    String   // sessionId or userId
+  expiresAt   DateTime
+
+  @@unique([clinicianId, slotStart])
+  @@index([expiresAt])
+}

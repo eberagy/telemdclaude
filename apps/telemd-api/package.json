@@ -1,0 +1,39 @@
+{
+  "name": "telemd-api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:prod": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/s3-request-presigner": "^3.0.0",
+    "@clerk/nextjs": "^5.0.0",
+    "@prisma/client": "^5.15.0",
+    "@sentry/nextjs": "^8.0.0",
+    "@telemd/shared": "workspace:*",
+    "next": "^14.2.0",
+    "nodemailer": "^6.9.0",
+    "postmark": "^4.0.0",
+    "stripe": "^16.0.0",
+    "tsx": "^4.0.0",
+    "twilio": "^5.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/nodemailer": "^6.4.0",
+    "prisma": "^5.15.0",
+    "typescript": "^5.4.0"
+  }
+}

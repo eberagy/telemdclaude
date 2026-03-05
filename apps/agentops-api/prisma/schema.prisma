@@ -1,0 +1,207 @@
+// ============================================================
+// AgentOps Prisma Schema
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("AGENTOPS_DATABASE_URL")
+}
+
+enum AgentRunStatus {
+  QUEUED
+  RUNNING
+  AWAITING_APPROVAL
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CHANGES_REQUESTED
+  EXPIRED
+}
+
+enum AutonomyLevel {
+  DRAFT_ONLY
+  NORMAL
+  AGGRESSIVE
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ============================================================
+// AGENT CONFIGURATION
+// ============================================================
+
+model Agent {
+  id            String        @id @default(cuid())
+  name          String        @unique // "orchestrator", "ceo", etc.
+  displayName   String
+  description   String
+  autonomyLevel AutonomyLevel @default(NORMAL)
+  isActive      Boolean       @default(true)
+  isPaused      Boolean       @default(false)
+  budgetCentsPerDay Int       @default(500) // $5/day default
+  spentTodayCents   Int       @default(0)
+  lastResetAt   DateTime      @default(now())
+  allowedTools  String[]      // list of permitted tool names
+
+  runs      AgentRun[]
+  budgets   BudgetEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// TASK QUEUE
+// ============================================================
+
+model QueuedTask {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  source      String   // "github", "telemd_event", "manual", "scheduled"
+  sourceId    String?  // e.g., GitHub issue number
+  priority    Int      @default(5) // 1-10, 10=highest
+  assignedTo  String?  // agent name
+  status      String   @default("PENDING") // PENDING, ASSIGNED, COMPLETED, CANCELLED
+  labels      String[]
+  metadata    Json     @default("{}")
+
+  runs AgentRun[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, priority])
+  @@index([source, sourceId])
+}
+
+// ============================================================
+// AGENT RUN
+// ============================================================
+
+model AgentRun {
+  id          String         @id @default(cuid())
+  taskId      String?
+  agentId     String
+  status      AgentRunStatus @default(QUEUED)
+  prompt      String
+  result      String?
+  error       String?
+  artifacts   Json           @default("[]") // diffs, files, URLs
+  logs        Json           @default("[]")
+  tokenUsed   Int            @default(0)
+  costCents   Int            @default(0)
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  task  QueuedTask? @relation(fields: [taskId], references: [id])
+  agent Agent       @relation(fields: [agentId], references: [id])
+  approvals ApprovalRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentId, status])
+  @@index([taskId])
+}
+
+// ============================================================
+// APPROVAL REQUEST
+// ============================================================
+
+model ApprovalRequest {
+  id           String         @id @default(cuid())
+  runId        String
+  token        String         @unique @default(cuid())
+  agentName    String
+  summary      String
+  action       String
+  risk         RiskLevel
+  preview      String?
+  rollbackPlan String?
+  whySafe      String?
+  status       ApprovalStatus @default(PENDING)
+  decidedBy    String?
+  decisionNote String?
+  expiresAt    DateTime
+
+  run AgentRun @relation(fields: [runId], references: [id])
+
+  createdAt  DateTime  @default(now())
+  decidedAt  DateTime?
+
+  @@index([token])
+  @@index([status])
+}
+
+// ============================================================
+// BUDGET ENTRIES
+// ============================================================
+
+model BudgetEntry {
+  id        String @id @default(cuid())
+  agentId   String
+  provider  String // "anthropic", "openai", etc.
+  model     String
+  tokens    Int
+  costCents Int
+  runId     String?
+
+  agent Agent @relation(fields: [agentId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([agentId, createdAt])
+}
+
+// ============================================================
+// TELEMD EVENT LOG
+// ============================================================
+
+model TeleMDEventLog {
+  id        String   @id @default(cuid())
+  eventType String
+  payload   Json
+  processed Boolean  @default(false)
+  processedAt DateTime?
+  taskId    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([eventType, processed])
+}
+
+// ============================================================
+// GITHUB ISSUE CACHE
+// ============================================================
+
+model GitHubIssueCache {
+  id          String   @id @default(cuid())
+  owner       String
+  repo        String
+  issueNumber Int
+  title       String
+  body        String?
+  labels      String[]
+  state       String
+  taskId      String?
+  cachedAt    DateTime @default(now())
+
+  @@unique([owner, repo, issueNumber])
+}

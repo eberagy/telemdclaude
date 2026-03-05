@@ -1,0 +1,16 @@
+{
+  # Global options
+  email admin@example.com
+}
+
+# If DOMAIN is set, serve over HTTPS; otherwise serve on IP
+{$DOMAIN:localhost} {
+  # AgentOps UI (main portal)
+  reverse_proxy /approvals* agentops-ui:4001
+  reverse_proxy /* agentops-ui:4001
+
+  # AgentOps API (internal)
+  handle /api/* {
+    reverse_proxy agentops-api:4000
+  }
+}
