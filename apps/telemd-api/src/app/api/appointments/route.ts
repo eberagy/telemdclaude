@@ -214,6 +214,53 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ appointments });
     }
 
+    // Owner: all appointments for their practice
+    if (role === "owner") {
+      const owner = await prisma.practiceMember.findFirst({
+        where: { clerkUserId: userId, role: "PracticeOwner", isActive: true },
+      });
+      if (!owner) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+      const limit = parseInt(searchParams.get("limit") ?? "200");
+      const appointments = await prisma.appointment.findMany({
+        where: { practiceId: owner.practiceId },
+        include: {
+          appointmentType: { select: { name: true, durationMinutes: true } },
+          patient: { select: { id: true, email: true, phone: true } },
+          clinician: { include: { member: { select: { firstName: true, lastName: true } } } },
+        },
+        orderBy: { slotStart: "desc" },
+        take: limit,
+      });
+      return NextResponse.json({ appointments });
+    }
+
+    // Staff: scheduling-only view (no clinical fields), scoped to their practice
+    if (role === "staff") {
+      const staff = await prisma.practiceMember.findFirst({
+        where: { clerkUserId: userId, role: "Staff", isActive: true },
+      });
+      if (!staff) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+      const limit = parseInt(searchParams.get("limit") ?? "200");
+      const appointments = await prisma.appointment.findMany({
+        where: { practiceId: staff.practiceId },
+        select: {
+          id: true,
+          status: true,
+          slotStart: true,
+          slotEnd: true,
+          practiceId: true,
+          appointmentType: { select: { name: true, durationMinutes: true } },
+          // Only minimal patient info for scheduling — no PHI notes/transcripts
+          patient: { select: { id: true, email: true, phone: true } },
+        },
+        orderBy: { slotStart: "asc" },
+        take: limit,
+      });
+      return NextResponse.json({ appointments });
+    }
+
     return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
   } catch (err) {
     console.error("[appointments GET]", err);

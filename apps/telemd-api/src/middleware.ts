@@ -6,6 +6,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks/(.*)",
   "/api/availability(.*)",       // booking flow: guests check slots
   "/api/onboarding/(.*)",        // practice creation (newly signed-up owner)
+  "/api/demo-request",           // public lead capture form
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

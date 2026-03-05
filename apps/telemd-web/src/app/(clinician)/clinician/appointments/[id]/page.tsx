@@ -349,9 +349,21 @@ function ClinicalNotePanel({
       </CardHeader>
       <CardContent className="space-y-4">
         {isSigned ? (
-          <p className="text-sm text-muted-foreground">
-            This note has been signed and cannot be edited.
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              This note has been signed and cannot be edited.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const win = window.open(`/api/notes/${appointmentId}/export`, "_blank");
+                if (!win) alert("Pop-up blocked — allow pop-ups to export.");
+              }}
+            >
+              Export as PDF
+            </Button>
+          </div>
         ) : (
           <>
             {[
