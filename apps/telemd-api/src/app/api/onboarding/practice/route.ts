@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
@@ -63,6 +63,17 @@ export async function POST(req: NextRequest) {
         isActive: true,
       },
     });
+
+    // Update Clerk metadata so middleware routes them to the owner portal
+    try {
+      const client = await clerkClient();
+      await client.users.updateUserMetadata(userId, {
+        publicMetadata: { role: "PracticeOwner", practiceId: practice.id },
+      });
+    } catch (err) {
+      console.error("[onboarding] Failed to update Clerk metadata:", err);
+      // Non-fatal — user can still proceed, metadata will sync on next login
+    }
 
     return NextResponse.json({ practiceId: practice.id, slug: practice.slug }, { status: 201 });
   } catch (err) {

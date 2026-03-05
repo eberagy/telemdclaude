@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
+import { clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
 // POST /api/webhooks/clerk — sync Clerk user events to the DB
@@ -53,14 +54,29 @@ export async function POST(req: NextRequest) {
       data: { firstName, lastName, email: primaryEmail },
     });
 
-    // If this is a patient, try to update the patient profile
+    // Upsert patient profile (all new users start as potential patients)
     await prisma.patientProfile.upsert({
       where: { clerkUserId },
       update: { email: primaryEmail },
       create: { clerkUserId, email: primaryEmail, state: "PA" },
-    }).catch(() => {
-      // Silently ignore if patient profile doesn't exist (non-patient user)
-    });
+    }).catch(() => {});
+
+    // For new users: set publicMetadata.role = "Patient" in Clerk so middleware
+    // can route them. If they already have a practice member role, use that instead.
+    if (type === "user.created") {
+      const existingMember = await prisma.practiceMember.findFirst({
+        where: { clerkUserId, isActive: true },
+      });
+      const role = existingMember?.role ?? "Patient";
+      try {
+        const client = await clerkClient();
+        await client.users.updateUserMetadata(clerkUserId, {
+          publicMetadata: { role },
+        });
+      } catch (err) {
+        console.error("[clerk-webhook] Failed to set user metadata:", err);
+      }
+    }
   }
 
   if (type === "user.deleted") {
