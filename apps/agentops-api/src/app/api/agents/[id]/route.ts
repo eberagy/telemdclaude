@@ -11,9 +11,10 @@ const ActionSchema = z.object({
 // POST /api/agents/[id] — control actions (pause, resume, disable, enable)
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await req.json();
     const parsed = ActionSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -28,7 +29,7 @@ export async function POST(
       enable: { isActive: true },
     }[action];
 
-    const agent = await prisma.agent.update({ where: { id: params.id }, data: update });
+    const agent = await prisma.agent.update({ where: { id }, data: update });
     return NextResponse.json({ agent });
   } catch (err) {
     console.error("[agents/[id] POST]", err);
@@ -39,9 +40,10 @@ export async function POST(
 // PATCH /api/agents/[id] — update autonomy level, budget
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await req.json();
     const parsed = ActionSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -49,7 +51,7 @@ export async function PATCH(
     const { autonomyLevel, budgetCentsPerDay } = parsed.data;
 
     const agent = await prisma.agent.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(autonomyLevel ? { autonomyLevel } : {}),
         ...(budgetCentsPerDay !== undefined ? { budgetCentsPerDay } : {}),

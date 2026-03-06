@@ -11,15 +11,16 @@ const UpdateSchema = z.object({
 // PATCH /api/queue/[id]
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await req.json();
     const parsed = UpdateSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
     const task = await prisma.queuedTask.update({
-      where: { id: params.id },
+      where: { id },
       data: parsed.data,
     });
 
