@@ -22,8 +22,6 @@ const RISK_COLORS: Record<string, string> = {
   CRITICAL: "text-red-400 bg-red-900/30",
 };
 
-const AGENTOPS_API = process.env.NEXT_PUBLIC_AGENTOPS_API_URL ?? "http://localhost:4000";
-
 export default function ApprovalsPage() {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +29,7 @@ export default function ApprovalsPage() {
 
   const fetchApprovals = () => {
     setLoading(true);
-    fetch(`${AGENTOPS_API}/api/approvals?status=${filter}`)
+    fetch(`/api/approvals?status=${filter}`)
       .then((r) => r.json())
       .then((data) => {
         setApprovals(data.approvals ?? []);
@@ -42,7 +40,7 @@ export default function ApprovalsPage() {
   useEffect(() => { fetchApprovals(); }, [filter]);
 
   const decide = async (token: string, decision: string) => {
-    await fetch(`${AGENTOPS_API}/api/approvals/${token}`, {
+    await fetch(`/api/approvals/${token}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decision }),

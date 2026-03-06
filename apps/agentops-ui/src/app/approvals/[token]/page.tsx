@@ -18,8 +18,6 @@ interface ApprovalDetail {
   createdAt: string;
 }
 
-const AGENTOPS_API = process.env.NEXT_PUBLIC_AGENTOPS_API_URL ?? "http://localhost:4000";
-
 export default function ApprovalDetailPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const [approval, setApproval] = useState<ApprovalDetail | null>(null);
@@ -28,7 +26,7 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ token
   const [note, setNote] = useState("");
 
   useEffect(() => {
-    fetch(`${AGENTOPS_API}/api/approvals/${token}`)
+    fetch(`/api/approvals/${token}`)
       .then((r) => r.json())
       .then((data) => {
         setApproval(data.approval);
@@ -38,13 +36,13 @@ export default function ApprovalDetailPage({ params }: { params: Promise<{ token
 
   const decide = async (decision: string) => {
     setDeciding(true);
-    await fetch(`${AGENTOPS_API}/api/approvals/${token}`, {
+    await fetch(`/api/approvals/${token}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decision, note }),
     });
     // Refresh
-    const data = await fetch(`${AGENTOPS_API}/api/approvals/${token}`).then((r) => r.json());
+    const data = await fetch(`/api/approvals/${token}`).then((r) => r.json());
     setApproval(data.approval);
     setDeciding(false);
   };
