@@ -15,9 +15,10 @@ const UpdateSchema = z.object({
 // PATCH /api/owner/appointment-types/[id]
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
@@ -31,12 +32,12 @@ export async function PATCH(
     if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
     const existing = await prisma.appointmentType.findFirst({
-      where: { id: params.id, practiceId: owner.practiceId },
+      where: { id, practiceId: owner.practiceId },
     });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const updated = await prisma.appointmentType.update({
-      where: { id: params.id },
+      where: { id },
       data: parsed.data,
     });
 
@@ -49,9 +50,10 @@ export async function PATCH(
 // DELETE /api/owner/appointment-types/[id] — soft-delete by deactivating
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
@@ -61,12 +63,12 @@ export async function DELETE(
     if (!owner) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const existing = await prisma.appointmentType.findFirst({
-      where: { id: params.id, practiceId: owner.practiceId },
+      where: { id, practiceId: owner.practiceId },
     });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     await prisma.appointmentType.update({
-      where: { id: params.id },
+      where: { id },
       data: { isActive: false },
     });
 

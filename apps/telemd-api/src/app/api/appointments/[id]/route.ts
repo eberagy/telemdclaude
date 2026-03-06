@@ -62,7 +62,16 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         },
         soapSummary: isClinicalUser ? true : false,
         clinicianNote: isClinicalUser ? { select: { id: true, status: true, signedAt: true } } : false,
-        practice: { select: { name: true, slug: true, timezone: true } },
+        practice: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            timezone: true,
+            notTriageBannerText: true,
+            messagingDisclaimerText: true,
+          },
+        },
       },
     });
 

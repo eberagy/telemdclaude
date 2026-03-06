@@ -9,15 +9,16 @@ import { writeAuditLog } from "@/lib/audit";
 // The client-side will trigger window.print() on the returned HTML.
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: appointmentId } = await params;
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
     // Load note with appointment and practice
     const note = await prisma.clinicianNote.findUnique({
-      where: { id: params.id },
+      where: { appointmentId: appointmentId },
       include: {
         appointment: {
           include: {
@@ -166,7 +167,7 @@ export async function GET(
     return new Response(html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
-        "Content-Disposition": `inline; filename="visit-note-${params.id}.html"`,
+        "Content-Disposition": `inline; filename="visit-note-${appointmentId}.html"`,
       },
     });
   } catch (err) {

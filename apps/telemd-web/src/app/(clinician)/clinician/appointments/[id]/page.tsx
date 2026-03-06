@@ -320,6 +320,21 @@ function ClinicalNotePanel({
   const [plan, setPlan] = useState("");
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (existingNote && existingNote.status !== "SIGNED") {
+      fetch(`/api/notes/${appointmentId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.note) {
+            setSubjective(data.note.subjective ?? "");
+            setObjective(data.note.objective ?? "");
+            setAssessment(data.note.assessment ?? "");
+            setPlan(data.note.plan ?? "");
+          }
+        });
+    }
+  }, [appointmentId, existingNote]);
+
   const save = async (sign = false) => {
     setSaving(true);
     const res = await fetch(`/api/notes/${appointmentId}`, {

@@ -7,9 +7,10 @@ import { writeAuditLog } from "@/lib/audit";
 // [id] is the ClinicianProfile id
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
@@ -25,7 +26,7 @@ export async function POST(
     }
 
     const clinician = await prisma.clinicianProfile.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { member: { select: { practiceId: true } } },
     });
 
@@ -35,7 +36,7 @@ export async function POST(
 
     const newStatus = action === "activate" ? "ACTIVE" : "INACTIVE";
     const updated = await prisma.clinicianProfile.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         seatStatus: newStatus,
         ...(action === "activate"
@@ -50,7 +51,7 @@ export async function POST(
       memberId: owner.id,
       eventType: action === "activate" ? "SEAT_ACTIVATED" : "SEAT_DEACTIVATED",
       resourceType: "ClinicianProfile",
-      resourceId: params.id,
+      resourceId: id,
     });
 
     return NextResponse.json({ seatStatus: updated.seatStatus });
