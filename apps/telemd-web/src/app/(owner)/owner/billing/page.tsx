@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CreditCard, CheckCircle, AlertTriangle, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 interface ClinicianSeat {
   id: string;
@@ -37,7 +38,13 @@ export default function OwnerBillingPage() {
   const openBillingPortal = async () => {
     const res = await fetch("/api/stripe/billing-portal", { method: "POST" });
     const data = await res.json();
-    if (data.url) window.location.href = data.url;
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      toast.info(data.error === "No billing account found"
+        ? "No Stripe account found. Activate a clinician seat to set up billing."
+        : "Unable to open billing portal. Please try again.");
+    }
   };
 
   return (
