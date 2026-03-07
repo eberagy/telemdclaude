@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
 // Routes that do NOT require authentication
 const isPublicRoute = createRouteMatcher([
@@ -13,7 +14,10 @@ const isPublicRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return;
-  await auth.protect();
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
 });
 
 export const config = {

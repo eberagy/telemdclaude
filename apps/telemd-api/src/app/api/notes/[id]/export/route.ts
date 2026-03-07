@@ -8,7 +8,7 @@ import { writeAuditLog } from "@/lib/audit";
 // Using HTML/CSS approach for simplicity and no Chromium dependency.
 // The client-side will trigger window.print() on the returned HTML.
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {

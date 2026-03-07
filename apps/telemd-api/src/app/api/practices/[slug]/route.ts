@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 // GET /api/practices/[slug] — public practice info for booking page
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminAuth } from "@/lib/auth";
-import { z } from "zod";
 
 // GET /api/approvals — List pending approvals
 export async function GET(req: NextRequest) {

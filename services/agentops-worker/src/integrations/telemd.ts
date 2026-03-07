@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../generated/prisma";
 import type { TeleMDEvent } from "@telemd/shared";
 
 const prisma = new PrismaClient();

@@ -79,6 +79,7 @@ enum AuditEventType {
   PATIENT_ATTESTATION
   LOGIN
   INVITE_SENT
+  INVITE_ACCEPTED
   SEAT_ACTIVATED
   SEAT_DEACTIVATED
 }
@@ -369,7 +370,6 @@ model Appointment {
   clinicianNote    ClinicianNote?
   messages         Message[]
   uploads          FileUpload[]
-  auditLogs        AuditLog[]
   reminders        Reminder[]
 
   createdAt DateTime @default(now())

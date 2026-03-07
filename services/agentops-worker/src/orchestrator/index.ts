@@ -4,7 +4,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../../generated/prisma";
 import { sendApprovalRequest, sendOpsAlert } from "../integrations/slack.js";
 import type { AgentName } from "@telemd/shared";
 

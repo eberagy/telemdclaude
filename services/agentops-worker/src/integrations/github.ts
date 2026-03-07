@@ -1,5 +1,5 @@
 import { Octokit } from "@octokit/rest";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../generated/prisma";
 
 const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 const prisma = new PrismaClient();

@@ -10,7 +10,7 @@ const InviteSchema = z.object({
 });
 
 // GET /api/owner/team — list all practice members
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });

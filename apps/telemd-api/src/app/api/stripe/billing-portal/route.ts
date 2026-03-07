@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-06-20" });
 
 // POST /api/stripe/billing-portal — create Stripe billing portal session for practice owner
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 const ADMIN_SECRET = process.env.AGENTOPS_ADMIN_SECRET ?? "";
 

@@ -4,7 +4,7 @@
  * Cost: 1 Postmark email/week ≈ free.
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../../generated/prisma";
 
 const prisma = new PrismaClient();
 

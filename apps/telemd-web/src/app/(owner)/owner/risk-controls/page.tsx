@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormRegisterReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -247,7 +247,7 @@ function ToggleField({
   label: string;
   hint?: string;
   id: string;
-  registration: ReturnType<typeof useForm<RiskControlsForm>["register"]>;
+  registration: UseFormRegisterReturn;
 }) {
   return (
     <div className="flex items-start justify-between gap-4">

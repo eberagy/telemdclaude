@@ -1,5 +1,6 @@
 import { WebClient } from "@slack/web-api";
-import type { ApprovalRequest } from "@prisma/client";
+import type { KnownBlock } from "@slack/web-api";
+import type { ApprovalRequest } from "../generated/prisma";
 
 const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 
@@ -27,7 +28,7 @@ export async function sendApprovalRequest(
     await slack.chat.postMessage({
       channel: APPROVAL_CHANNEL,
       text: `[Agent Approval Required] ${approval.summary}`,
-      blocks: [
+      blocks: ([
         {
           type: "header",
           text: {
@@ -114,7 +115,7 @@ export async function sendApprovalRequest(
             },
           ],
         },
-      ],
+      ] as KnownBlock[]),
     });
   } catch (err) {
     console.error("[slack] Failed to send approval request:", err);
@@ -212,7 +213,7 @@ export async function sendDailyBrief(data: {
     await slack.chat.postMessage({
       channel: APPROVAL_CHANNEL,
       text: `:morning: AgentOps Daily Brief`,
-      blocks: [
+      blocks: ([
         {
           type: "header",
           text: { type: "plain_text", text: ":morning: AgentOps Daily Brief" },
@@ -232,7 +233,7 @@ export async function sendDailyBrief(data: {
             { type: "mrkdwn", text: `*Alerts:* ${data.alertsCount}` },
           ],
         },
-      ],
+      ] as KnownBlock[]),
     });
   } catch (err) {
     console.error("[slack] Failed to send daily brief:", err);

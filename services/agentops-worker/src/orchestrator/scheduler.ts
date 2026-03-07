@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../../generated/prisma";
 import { sendDailyBrief } from "../integrations/slack.js";
 import { sendWeeklyCostReport } from "./cost-report.js";
 

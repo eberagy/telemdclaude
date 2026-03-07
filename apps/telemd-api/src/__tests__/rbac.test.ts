@@ -26,11 +26,10 @@ vi.mock("@clerk/nextjs/server", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
 import { requireMember, requireActiveSeat, requirePALicensure } from "@/lib/rbac";
 
 describe("requireMember", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it("throws AuthorizationError when member not found", async () => {
     vi.mocked(prisma.practiceMember.findFirst).mockResolvedValue(null);
@@ -59,7 +58,7 @@ describe("requireMember", () => {
 });
 
 describe("requireActiveSeat", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it("throws when seat is INACTIVE", async () => {
     vi.mocked(prisma.clinicianProfile.findUnique).mockResolvedValue({
@@ -82,7 +81,7 @@ describe("requireActiveSeat", () => {
 });
 
 describe("requirePALicensure", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it("throws when not licensed in PA", async () => {
     vi.mocked(prisma.clinicianProfile.findUnique).mockResolvedValue({

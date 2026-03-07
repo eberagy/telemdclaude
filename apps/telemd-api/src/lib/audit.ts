@@ -1,5 +1,5 @@
+import { Prisma, type AuditEventType } from "@prisma/client";
 import { prisma } from "./prisma";
-import type { AuditEventType } from "@telemd/shared";
 
 interface AuditParams {
   practiceId: string;
@@ -29,7 +29,7 @@ export async function writeAuditLog(params: AuditParams): Promise<void> {
         resourceType: params.resourceType,
         ipAddress: params.ipAddress,
         userAgent: params.userAgent,
-        metadata: params.metadata ?? {},
+        metadata: (params.metadata ?? {}) as Prisma.InputJsonValue,
       },
     });
   } catch (err) {

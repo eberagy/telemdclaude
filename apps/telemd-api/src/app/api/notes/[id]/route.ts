@@ -9,7 +9,7 @@ interface RouteParams {
 }
 
 // GET /api/notes/[appointmentId] — Load note content for the editor
-export async function GET(req: NextRequest, { params }: RouteParams) {
+export async function GET(_req: NextRequest, { params }: RouteParams) {
   try {
     const { id: appointmentId } = await params;
     const { userId } = await auth();

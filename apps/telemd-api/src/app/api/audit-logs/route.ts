@@ -43,16 +43,11 @@ async function getAuditLogs(
   limit: number,
   offset: number
 ) {
+  // eventType is an enum — can't use contains. Search on clerkUserId only;
+  // client-side can filter displayed results by event type string.
   const where = {
     practiceId,
-    ...(search
-      ? {
-          OR: [
-            { eventType: { contains: search.toUpperCase() } as { contains: string } },
-            { clerkUserId: { contains: search } as { contains: string } },
-          ],
-        }
-      : {}),
+    ...(search ? { clerkUserId: { contains: search } } : {}),
   };
 
   const [logs, total] = await Promise.all([

@@ -2,7 +2,7 @@
  * Unit tests for Stripe webhook signature verification.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 
 // We test the logic around sig verification without calling the real Stripe API.
 // The key security guarantee: a request with a bad signature must be rejected.

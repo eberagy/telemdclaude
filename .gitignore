@@ -43,3 +43,11 @@ coverage/
 # Misc
 *.tgz
 .vercel
+
+# Prisma generated clients (generated at build time)
+apps/agentops-api/src/generated/
+services/agentops-worker/src/generated/
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+**/tsconfig.tsbuildinfo

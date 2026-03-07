@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get("limit") ?? "50");
 
     const runs = await prisma.agentRun.findMany({
-      where: status ? { status } : {},
+      where: status ? { status: status as import("../../../generated/prisma").AgentRunStatus } : undefined,
       include: {
         agent: { select: { name: true, displayName: true } },
       },

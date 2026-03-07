@@ -18,7 +18,7 @@ const IntakeTemplateSchema = z.object({
 });
 
 // GET /api/owner/intake-templates
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });

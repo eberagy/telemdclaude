@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
@@ -23,9 +23,9 @@ export async function GET(
       return NextResponse.json({ error: "Invite not found or already used" }, { status: 404 });
     }
 
-    if (invite.acceptedAt || invite.expiresAt < new Date()) {
+    if (invite.usedAt || invite.expiresAt < new Date()) {
       return NextResponse.json(
-        { error: invite.acceptedAt ? "Invite already accepted" : "Invite expired" },
+        { error: invite.usedAt ? "Invite already accepted" : "Invite expired" },
         { status: 410 }
       );
     }
@@ -47,7 +47,7 @@ export async function GET(
 }
 
 export async function POST(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
@@ -67,7 +67,7 @@ export async function POST(
       return NextResponse.json({ error: "Invite not found" }, { status: 404 });
     }
 
-    if (invite.acceptedAt) {
+    if (invite.usedAt) {
       return NextResponse.json({ error: "Invite already accepted" }, { status: 410 });
     }
 
@@ -121,7 +121,7 @@ export async function POST(
     // Mark invite as accepted
     await prisma.practiceInvite.update({
       where: { token },
-      data: { acceptedAt: new Date() },
+      data: { usedAt: new Date() },
     });
 
     // Update Clerk metadata with correct role

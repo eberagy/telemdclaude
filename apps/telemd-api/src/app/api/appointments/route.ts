@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireMember, requirePALicensure, AuthorizationError } from "@/lib/rbac";
+import { requirePALicensure, AuthorizationError } from "@/lib/rbac";
 import { writeAuditLog, getClientIP } from "@/lib/audit";
 import { BookingRequestSchema } from "@telemd/shared";
 

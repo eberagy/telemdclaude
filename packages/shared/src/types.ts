@@ -57,6 +57,7 @@ export type AuditEventType =
   | "PATIENT_ATTESTATION"
   | "LOGIN"
   | "INVITE_SENT"
+  | "INVITE_ACCEPTED"
   | "SEAT_ACTIVATED"
   | "SEAT_DEACTIVATED";
 
