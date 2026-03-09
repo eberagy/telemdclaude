@@ -54,7 +54,46 @@ export async function GET(req: NextRequest) {
     });
 
     // Generate slots for next 14 days
-    const targetDate = dateStr ? new Date(dateStr) : new Date();
+    // NOTE: availability block times ("09:00") are interpreted in server-local time.
+    // For production, these should be interpreted in practice.timezone using a tz library.
+    const targetDate = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
+    targetDate.setHours(0, 0, 0, 0);
+    const windowEnd = new Date(targetDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const now = new Date();
+
+    const clinicianIds = clinicians
+      .map((m) => m.clinician?.id)
+      .filter((id): id is string => !!id);
+
+    // Batch fetch: all booked slots for all clinicians in one query (avoid N+1)
+    const [bookedAppointments, activeLocks] = await Promise.all([
+      prisma.appointment.findMany({
+        where: {
+          clinicianId: { in: clinicianIds },
+          slotStart: { gte: targetDate, lte: windowEnd },
+          status: { notIn: ["CANCELLED", "RESCHEDULED", "PAYMENT_FAILED"] },
+        },
+        select: { clinicianId: true, slotStart: true },
+      }),
+      prisma.slotLock.findMany({
+        where: {
+          clinicianId: { in: clinicianIds },
+          slotStart: { gte: targetDate, lte: windowEnd },
+          expiresAt: { gt: now },
+        },
+        select: { clinicianId: true, slotStart: true },
+      }),
+    ]);
+
+    // Build per-clinician unavailable sets (booked + locked)
+    const unavailableByClinicianId = new Map<string, Set<string>>();
+    for (const { clinicianId, slotStart } of [...bookedAppointments, ...activeLocks]) {
+      if (!unavailableByClinicianId.has(clinicianId)) {
+        unavailableByClinicianId.set(clinicianId, new Set());
+      }
+      unavailableByClinicianId.get(clinicianId)!.add(slotStart.toISOString());
+    }
+
     const slots: Record<
       string,
       { clinicianId: string; clinicianName: string; specialty?: string; slots: string[] }
@@ -65,6 +104,7 @@ export async function GET(req: NextRequest) {
 
       const clinicianSlots: string[] = [];
       const clinicianId = member.clinician.id;
+      const unavailable = unavailableByClinicianId.get(clinicianId) ?? new Set<string>();
 
       for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
         const date = new Date(targetDate);
@@ -98,49 +138,32 @@ export async function GET(req: NextRequest) {
         const [startH, startM] = startTime.split(":").map(Number);
         const [endH, endM] = endTime!.split(":").map(Number);
 
-        const windowStart = new Date(date);
-        windowStart.setHours(startH, startM, 0, 0);
-        const windowEnd = new Date(date);
-        windowEnd.setHours(endH, endM, 0, 0);
+        const slotWindowStart = new Date(date);
+        slotWindowStart.setHours(startH, startM, 0, 0);
+        const slotWindowEnd = new Date(date);
+        slotWindowEnd.setHours(endH, endM, 0, 0);
 
-        const slotDuration =
+        const slotDurationMs =
           (apptType.durationMinutes + member.clinician.bufferMinutes) * 60 * 1000;
+        const apptDurationMs = apptType.durationMinutes * 60 * 1000;
 
-        let slotTime = windowStart;
-        while (
-          slotTime.getTime() + apptType.durationMinutes * 60 * 1000 <=
-          windowEnd.getTime()
-        ) {
-          // Skip past slots
-          if (slotTime > new Date()) {
-            clinicianSlots.push(slotTime.toISOString());
+        let slotTime = slotWindowStart;
+        while (slotTime.getTime() + apptDurationMs <= slotWindowEnd.getTime()) {
+          const iso = slotTime.toISOString();
+          // Skip past slots and unavailable (booked + locked) slots
+          if (slotTime > now && !unavailable.has(iso)) {
+            clinicianSlots.push(iso);
           }
-          slotTime = new Date(slotTime.getTime() + slotDuration);
+          slotTime = new Date(slotTime.getTime() + slotDurationMs);
         }
       }
 
-      // Filter out already-booked slots
-      const bookedSlots = await prisma.appointment.findMany({
-        where: {
-          clinicianId,
-          slotStart: {
-            gte: targetDate,
-            lte: new Date(targetDate.getTime() + 14 * 24 * 60 * 60 * 1000),
-          },
-          status: { notIn: ["CANCELLED", "RESCHEDULED", "PAYMENT_FAILED"] },
-        },
-        select: { slotStart: true },
-      });
-
-      const bookedSet = new Set(bookedSlots.map((a) => a.slotStart.toISOString()));
-      const availableSlots = clinicianSlots.filter((s) => !bookedSet.has(s));
-
-      if (availableSlots.length > 0) {
+      if (clinicianSlots.length > 0) {
         slots[clinicianId] = {
           clinicianId,
           clinicianName: `Dr. ${member.firstName} ${member.lastName}`,
           specialty: member.clinician.specialty ?? undefined,
-          slots: availableSlots,
+          slots: clinicianSlots,
         };
       }
     }
