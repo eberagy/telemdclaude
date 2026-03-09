@@ -60,7 +60,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
             dateOfBirth: isPatient || isClinicalUser ? true : false,
           },
         },
-        soapSummary: isClinicalUser ? true : false,
+        // Always fetch SOAP; we'll filter for the response based on role + practice setting
+        soapSummary: true,
         clinicianNote: isClinicalUser ? { select: { id: true, status: true, signedAt: true } } : false,
         practice: {
           select: {
@@ -70,6 +71,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
             timezone: true,
             notTriageBannerText: true,
             messagingDisclaimerText: true,
+            afterVisitSummaryVisible: true,
           },
         },
       },
@@ -90,6 +92,26 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         transcriptRaw: undefined,
       };
       return NextResponse.json({ appointment: staffView });
+    }
+
+    // For patients: only include SOAP if practice has after-visit summary enabled.
+    // Strip red flags and missing info — those are clinician-only.
+    if (isPatient && appointment) {
+      const soap = appointment.soapSummary;
+      const afterVisitVisible = appointment.practice?.afterVisitSummaryVisible ?? false;
+      const patientSoap = (soap && afterVisitVisible)
+        ? {
+            id: soap.id,
+            subjective: soap.subjective,
+            objective: soap.objective,
+            assessment: soap.assessment,
+            plan: soap.plan,
+            disclaimer: soap.disclaimer,
+            generatedAt: soap.generatedAt,
+          }
+        : null;
+
+      return NextResponse.json({ appointment: { ...appointment, soapSummary: patientSoap } });
     }
 
     // Audit: view patient record

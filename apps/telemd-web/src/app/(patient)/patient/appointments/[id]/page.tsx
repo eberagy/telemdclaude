@@ -20,6 +20,16 @@ import { IntakeCallPanel } from "@/components/intake/IntakeCallPanel";
 import { VideoVisitPanel } from "@/components/visit/VideoVisitPanel";
 import { isWithinJoinWindow } from "@telemd/shared";
 
+interface SOAPSummary {
+  id: string;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+  disclaimer: string;
+  generatedAt: string;
+}
+
 interface AppointmentDetail {
   id: string;
   status: string;
@@ -29,6 +39,7 @@ interface AppointmentDetail {
   intakeStatus: string;
   paAttestationAt: string;
   patientNotes?: string;
+  soapSummary?: SOAPSummary | null;
   appointmentType: {
     name: string;
     durationMinutes: number;
@@ -45,6 +56,7 @@ interface AppointmentDetail {
     timezone: string;
     notTriageBannerText: string;
     messagingDisclaimerText: string;
+    afterVisitSummaryVisible: boolean;
   };
 }
 
@@ -247,6 +259,47 @@ export default function PatientAppointmentDetailPage({
           role="participant"
           onEnd={() => setActivePanel(null)}
         />
+      )}
+
+      {/* After-visit summary (only shown when practice enables it) */}
+      {appointment.soapSummary && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              Visit Summary
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              {appointment.soapSummary.disclaimer}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            {appointment.soapSummary.subjective && (
+              <div>
+                <p className="font-semibold text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                  What you reported
+                </p>
+                <p className="text-foreground whitespace-pre-wrap">{appointment.soapSummary.subjective}</p>
+              </div>
+            )}
+            {appointment.soapSummary.assessment && (
+              <div>
+                <p className="font-semibold text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                  Clinical assessment
+                </p>
+                <p className="text-foreground whitespace-pre-wrap">{appointment.soapSummary.assessment}</p>
+              </div>
+            )}
+            {appointment.soapSummary.plan && (
+              <div>
+                <p className="font-semibold text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                  Plan
+                </p>
+                <p className="text-foreground whitespace-pre-wrap">{appointment.soapSummary.plan}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Messaging disclaimer */}
