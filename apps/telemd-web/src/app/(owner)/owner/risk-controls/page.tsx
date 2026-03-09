@@ -13,7 +13,6 @@ import type { z } from "zod";
 type RiskControlsForm = z.infer<typeof PracticeRiskControlsSchema>;
 
 export default function RiskControlsPage() {
-  const [practiceId, setPracticeId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -46,7 +45,6 @@ export default function RiskControlsPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.practice) {
-          setPracticeId(data.practice.id);
           reset(data.practice);
         }
       });

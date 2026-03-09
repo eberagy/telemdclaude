@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Phone, PhoneOff, CheckCircle, AlertTriangle, X } from "lucide-react";
@@ -20,6 +20,17 @@ export function IntakeCallPanel({
 }: IntakeCallPanelProps) {
   const [callState, setCallState] = useState<CallState>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const retellClientRef = useRef<any>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (retellClientRef.current) {
+        retellClientRef.current.stopCall();
+      }
+    };
+  }, []);
 
   const startCall = async () => {
     setCallState("connecting");
@@ -40,18 +51,29 @@ export function IntakeCallPanel({
         return;
       }
 
-      // In production, use Retell Web SDK with data.accessToken
-      // For now, simulate call flow
-      setCallState("active");
+      // Dynamically import Retell SDK to avoid SSR issues
+      const { RetellWebClient } = await import("retell-client-js-sdk");
+      const client = new RetellWebClient();
+      retellClientRef.current = client;
 
-      // The actual Retell Web SDK integration:
-      // const RetellWebClient = (await import("retell-client-js-sdk")).RetellWebClient;
-      // const client = new RetellWebClient();
-      // await client.startCall({ accessToken: data.accessToken });
-      // client.on("call_ended", () => { setCallState("completed"); onComplete(); });
+      client.on("call_started", () => {
+        setCallState("active");
+      });
 
-      // Simulated completion for demo (replace with SDK events in production)
-      console.log("[intake] Call started with callId:", data.callId);
+      client.on("call_ended", () => {
+        retellClientRef.current = null;
+        setCallState("completed");
+        setTimeout(() => onComplete(), 2000);
+      });
+
+      client.on("error", (err: unknown) => {
+        console.error("[intake] Retell SDK error:", err);
+        retellClientRef.current = null;
+        setCallState("error");
+        setErrorMsg("Call error. Please try again.");
+      });
+
+      await client.startCall({ accessToken: data.accessToken });
     } catch {
       setCallState("error");
       setErrorMsg("Network error. Please try again.");
@@ -59,10 +81,12 @@ export function IntakeCallPanel({
   };
 
   const endCall = () => {
+    if (retellClientRef.current) {
+      retellClientRef.current.stopCall();
+      retellClientRef.current = null;
+    }
     setCallState("completed");
-    setTimeout(() => {
-      onComplete();
-    }, 2000);
+    setTimeout(() => onComplete(), 2000);
   };
 
   return (

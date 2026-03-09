@@ -1,25 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { User, Shield, Lock } from "lucide-react";
 
-interface PatientInfo {
-  patientId: string | null;
-  practiceId: string | null;
-}
 
 export default function PatientProfilePage() {
   const { user, isLoaded } = useUser();
-  const [info, setInfo] = useState<PatientInfo | null>(null);
-
-  useEffect(() => {
-    fetch("/api/me")
-      .then((r) => r.json())
-      .then((data) => setInfo(data));
-  }, []);
 
   if (!isLoaded) {
     return (

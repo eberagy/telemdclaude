@@ -16,12 +16,6 @@ interface Message {
   readAt?: string;
 }
 
-interface PatientThread {
-  patientId: string;
-  email: string;
-  lastMessage: string;
-  unread: number;
-}
 
 export default function ClinicianMessagesPage() {
   const searchParams = useSearchParams();

@@ -27,7 +27,6 @@ interface Practice {
 }
 
 export default function OwnerSettingsPage() {
-  const [practice, setPractice] = useState<Practice | null>(null);
   const [form, setForm] = useState<Partial<Practice>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -37,7 +36,6 @@ export default function OwnerSettingsPage() {
     fetch("/api/owner/practice")
       .then((r) => r.json())
       .then((data) => {
-        setPractice(data.practice);
         setForm(data.practice ?? {});
         setLoading(false);
       });
@@ -52,8 +50,6 @@ export default function OwnerSettingsPage() {
       body: JSON.stringify(form),
     });
     if (res.ok) {
-      const data = await res.json();
-      setPractice(data.practice);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     }

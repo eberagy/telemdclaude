@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/utils";
-import { Calendar, Video, Phone, CheckCircle, AlertTriangle, Clock } from "lucide-react";
+import { Calendar, Video, CheckCircle, AlertTriangle, Clock } from "lucide-react";
 
 interface Appointment {
   id: string;
@@ -19,7 +19,6 @@ interface Appointment {
 export default function ClinicianSchedulePage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [practiceId, setPracticeId] = useState<string | null>(null);
 
   useEffect(() => {
     // Get practiceId from session/member
@@ -27,7 +26,6 @@ export default function ClinicianSchedulePage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.practiceId) {
-          setPracticeId(data.practiceId);
           return fetch(`/api/appointments?role=clinician&practiceId=${data.practiceId}`);
         }
       })

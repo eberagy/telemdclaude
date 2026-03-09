@@ -34,7 +34,6 @@ export default function OnboardingPage() {
   const { user } = useUser();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [practiceId, setPracticeId] = useState<string | null>(null);
 
   // Step 1: Practice info
   const [practice, setPractice] = useState<PracticeForm>({
@@ -75,7 +74,6 @@ export default function OnboardingPage() {
       setSaving(false);
       return;
     }
-    setPracticeId(data.practiceId);
     // Reload Clerk session so new PracticeOwner role is in the JWT immediately
     await user?.reload().catch(() => {});
     setStep(1);

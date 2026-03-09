@@ -19,13 +19,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { event, data } = body;
 
-    if (event === "call_ended" || event === "call_analyzed") {
-      const { call_id, transcript, call_analysis } = data;
+    if (event === "call_ended") {
+      const { call_id, transcript } = data;
 
-      // Find appointment by retell call ID
       const appointment = await prisma.appointment.findFirst({
         where: { retellCallId: call_id },
-        include: { practice: true },
       });
 
       if (!appointment) {
@@ -33,20 +31,63 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true });
       }
 
-      // Store transcript (PHI — stored encrypted at rest via DB)
+      // Store transcript immediately when call ends (PHI — never log)
       await prisma.appointment.update({
         where: { id: appointment.id },
         data: {
           intakeStatus: "COMPLETED",
           intakeCompletedAt: new Date(),
-          transcriptRaw: transcript ?? call_analysis?.transcript ?? "",
+          transcriptRaw: transcript ?? "",
         },
       });
 
-      // Generate SOAP summary asynchronously (don't block webhook response)
-      generateSOAPSummary(appointment.id, transcript ?? "").catch((err) => {
-        console.error("[retell] SOAP generation failed", err);
+      return NextResponse.json({ received: true });
+    }
+
+    // call_analyzed fires after call_ended with enriched analysis — use this for SOAP
+    if (event === "call_analyzed") {
+      const { call_id, transcript, call_analysis } = data;
+
+      const appointment = await prisma.appointment.findFirst({
+        where: { retellCallId: call_id },
       });
+
+      if (!appointment) {
+        return NextResponse.json({ received: true });
+      }
+
+      // Update transcript with richer analyzed version if available
+      const finalTranscript = transcript ?? call_analysis?.transcript ?? "";
+      if (finalTranscript) {
+        await prisma.appointment.update({
+          where: { id: appointment.id },
+          data: { transcriptRaw: finalTranscript },
+        });
+      }
+
+      // Generate SOAP summary only if not already generated
+      if (!appointment.soapSummaryId) {
+        generateSOAPSummary(appointment.id, finalTranscript).catch((err) => {
+          console.error("[retell] SOAP generation failed", err);
+        });
+      }
+
+      return NextResponse.json({ received: true });
+    }
+
+    if (event === "call_failed") {
+      const { call_id } = data;
+
+      const appointment = await prisma.appointment.findFirst({
+        where: { retellCallId: call_id },
+      });
+
+      if (appointment) {
+        await prisma.appointment.update({
+          where: { id: appointment.id },
+          data: { intakeStatus: "FAILED" },
+        });
+      }
 
       return NextResponse.json({ received: true });
     }
