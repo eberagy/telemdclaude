@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/agents — list all agents
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const agents = await prisma.agent.findMany({
       orderBy: { name: "asc" },

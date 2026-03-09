@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
  * Uses SDK auth (JWT) — no recording, no cloud storage.
  */
 
-interface ZoomSessionToken {
+export interface ZoomSessionToken {
   sessionToken: string;
   sessionName: string;
   role: 0 | 1; // 0=attendee, 1=host

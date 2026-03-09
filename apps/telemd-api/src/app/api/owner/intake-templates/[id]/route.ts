@@ -52,7 +52,7 @@ export async function PATCH(
 
 // DELETE /api/owner/intake-templates/[id]
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {

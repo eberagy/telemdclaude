@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/budgets/summary — per-agent budget summaries
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

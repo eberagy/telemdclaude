@@ -49,7 +49,7 @@ export async function PATCH(
 
 // DELETE /api/owner/appointment-types/[id] — soft-delete by deactivating
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
