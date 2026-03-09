@@ -50,10 +50,11 @@ export default function StaffSchedulePage() {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
+  const active = (a: Appointment) => !["CANCELLED", "RESCHEDULED", "NO_SHOW"].includes(a.status);
   const todayAppts = appointments.filter(
-    (a) => new Date(a.slotStart) >= today && new Date(a.slotStart) < tomorrow
+    (a) => new Date(a.slotStart) >= today && new Date(a.slotStart) < tomorrow && active(a)
   );
-  const upcoming = appointments.filter((a) => new Date(a.slotStart) >= tomorrow);
+  const upcoming = appointments.filter((a) => new Date(a.slotStart) >= tomorrow && active(a));
 
   if (loading) {
     return (

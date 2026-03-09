@@ -250,6 +250,8 @@ export async function GET(req: NextRequest) {
           slotStart: true,
           slotEnd: true,
           practiceId: true,
+          // intakeStatus is scheduling/operational, not clinical PHI
+          intakeStatus: true,
           appointmentType: { select: { name: true, durationMinutes: true } },
           // Only minimal patient info for scheduling — no PHI notes/transcripts
           patient: { select: { id: true, email: true, phone: true } },
