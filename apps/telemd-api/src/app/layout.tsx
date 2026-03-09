@@ -6,7 +6,7 @@ if (typeof window === "undefined") {
   validateEnv();
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }): React.ReactNode {
   return (
     <ClerkProvider>
       <html lang="en">
