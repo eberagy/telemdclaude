@@ -25,6 +25,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter telemd-api db:generate
+          pnpm --filter agentops-api db:generate
+          pnpm --filter agentops-worker db:generate
+        env:
+          DATABASE_URL: postgresql://telemd:test@localhost:5432/telemd
+          AGENTOPS_DATABASE_URL: postgresql://telemd:test@localhost:5432/agentops
+
       - name: Type check (shared)
         run: pnpm --filter @telemd/shared type-check
 
@@ -63,6 +72,14 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter telemd-api db:generate
+          pnpm --filter agentops-api db:generate
+        env:
+          DATABASE_URL: postgresql://telemd:test@localhost:5432/telemd
+          AGENTOPS_DATABASE_URL: postgresql://telemd:test@localhost:5432/agentops
 
       - name: Run tests
         run: pnpm test --if-present
