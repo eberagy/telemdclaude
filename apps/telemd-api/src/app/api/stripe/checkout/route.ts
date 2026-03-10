@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       success_url: `${baseUrl}/patient/appointments/${appointment.id}?payment=success`,
       cancel_url: `${baseUrl}/patient/appointments/${appointment.id}?payment=cancelled`,
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30 min
-    });
+    }, { idempotencyKey: appointmentId });
 
     return NextResponse.json({ checkoutUrl: session.url });
   } catch (err) {
