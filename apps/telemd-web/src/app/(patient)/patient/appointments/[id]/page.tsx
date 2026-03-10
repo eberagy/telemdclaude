@@ -74,6 +74,10 @@ export default function PatientAppointmentDetailPage({
   const [activePanel, setActivePanel] = useState<"intake" | "visit" | null>(
     actionParam === "intake" ? "intake" : null
   );
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   useEffect(() => {
     fetch(`/api/appointments/${id}`)
@@ -95,6 +99,18 @@ export default function PatientAppointmentDetailPage({
     if (data.checkoutUrl) {
       window.location.href = data.checkoutUrl;
     }
+  };
+
+  const submitFeedback = async () => {
+    if (!rating) return;
+    setSubmittingFeedback(true);
+    await fetch(`/api/appointments/${id}/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rating, comment }),
+    });
+    setSubmittingFeedback(false);
+    setFeedbackSubmitted(true);
   };
 
   if (loading) {
@@ -300,6 +316,57 @@ export default function PatientAppointmentDetailPage({
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Post-visit feedback */}
+      {appointment.status === "COMPLETED" && !feedbackSubmitted && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">How was your visit?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setRating(star)}
+                  className={`text-3xl leading-none transition-colors ${
+                    rating >= star ? "text-amber-400" : "text-muted-foreground hover:text-amber-300"
+                  }`}
+                  aria-label={`Rate ${star} star${star !== 1 ? "s" : ""}`}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="Any additional comments? (optional)"
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">{comment.length}/500</span>
+              <Button
+                onClick={submitFeedback}
+                disabled={!rating || submittingFeedback}
+                size="sm"
+              >
+                {submittingFeedback ? "Submitting..." : "Submit Feedback"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {appointment.status === "COMPLETED" && feedbackSubmitted && (
+        <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 p-4 rounded-lg">
+          <CheckCircle className="h-5 w-5 flex-shrink-0" />
+          <span className="text-sm font-medium">Thank you for your feedback!</span>
+        </div>
       )}
 
       {/* Messaging disclaimer */}

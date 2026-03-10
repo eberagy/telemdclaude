@@ -61,6 +61,7 @@ model Agent {
 
   runs      AgentRun[]
   budgets   BudgetEntry[]
+  memories  AgentMemory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -168,6 +169,25 @@ model BudgetEntry {
   createdAt DateTime @default(now())
 
   @@index([agentId, createdAt])
+}
+
+// ============================================================
+// AGENT MEMORY
+// ============================================================
+
+model AgentMemory {
+  id         String   @id @default(cuid())
+  agentId    String
+  key        String   // e.g. "last_architectural_decision"
+  value      String   // free-form text injected into agent context
+  importance Int      @default(1) // 1-5, higher = higher priority in context
+
+  agent Agent @relation(fields: [agentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentId])
 }
 
 // ============================================================
