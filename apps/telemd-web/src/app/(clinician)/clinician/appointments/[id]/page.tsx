@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   CheckCircle,
   ExternalLink,
+  Wand2,
 } from "lucide-react";
 import { VideoVisitPanel } from "@/components/visit/VideoVisitPanel";
 import { isWithinJoinWindow } from "@telemd/shared";
@@ -191,6 +192,7 @@ export default function ClinicianAppointmentPage({
               appointmentId={id}
               existingNote={appointment.clinicianNote}
               onSaved={refresh}
+              soapSummary={appointment.soapSummary}
             />
           )}
 
@@ -309,10 +311,12 @@ function ClinicalNotePanel({
   appointmentId,
   existingNote,
   onSaved,
+  soapSummary,
 }: {
   appointmentId: string;
   existingNote?: { id: string; status: string; signedAt?: string } | null;
   onSaved: () => void;
+  soapSummary?: SOAPSummary | null;
 }) {
   const [subjective, setSubjective] = useState("");
   const [objective, setObjective] = useState("");
@@ -381,6 +385,31 @@ function ClinicalNotePanel({
           </div>
         ) : (
           <>
+            {soapSummary && (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => {
+                    const hasContent = subjective || objective || assessment || plan;
+                    if (
+                      hasContent &&
+                      !window.confirm("This will overwrite your current notes. Continue?")
+                    )
+                      return;
+                    setSubjective(soapSummary.subjective ?? "");
+                    setObjective(soapSummary.objective ?? "");
+                    setAssessment(soapSummary.assessment ?? "");
+                    setPlan(soapSummary.plan ?? "");
+                  }}
+                >
+                  <Wand2 className="h-3.5 w-3.5" />
+                  Prefill from AI Summary
+                </Button>
+              </div>
+            )}
             {[
               { label: "Subjective", value: subjective, setter: setSubjective },
               { label: "Objective", value: objective, setter: setObjective },
