@@ -58,6 +58,7 @@ model Agent {
   spentTodayCents   Int       @default(0)
   lastResetAt   DateTime      @default(now())
   allowedTools  String[]      // list of permitted tool names
+  model         String        @default("claude-sonnet-4-6") // Anthropic model ID
 
   runs      AgentRun[]
   budgets   BudgetEntry[]

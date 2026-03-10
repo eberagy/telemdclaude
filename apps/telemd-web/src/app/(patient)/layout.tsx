@@ -2,9 +2,9 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
-import { Calendar, User, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import type { Metadata } from "next";
-import { MessagesNavItem } from "./_components/messages-nav-item";
+import { PatientNavLinks } from "./_components/patient-nav-links";
 
 export const metadata: Metadata = { title: { default: "My Health", template: "%s | TeleMD Patient" } };
 
@@ -25,21 +25,7 @@ export default async function PatientLayout({ children }: { children: React.Reac
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-1">
-            <Link
-              href="/patient/appointments"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
-            >
-              <Calendar className="h-4 w-4" />
-              Appointments
-            </Link>
-            <MessagesNavItem className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors" />
-            <Link
-              href="/patient/profile"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
-            >
-              <User className="h-4 w-4" />
-              Profile
-            </Link>
+            <PatientNavLinks variant="desktop" />
           </div>
 
           <div className="flex items-center gap-2">
@@ -51,21 +37,7 @@ export default async function PatientLayout({ children }: { children: React.Reac
                   <Menu className="h-5 w-5" />
                 </summary>
                 <div className="absolute right-0 top-10 w-48 bg-white border rounded-lg shadow-lg py-1 z-50">
-                  <Link
-                    href="/patient/appointments"
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted"
-                  >
-                    <Calendar className="h-4 w-4" />
-                    Appointments
-                  </Link>
-                  <MessagesNavItem className="flex items-center gap-2 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted" />
-                  <Link
-                    href="/patient/profile"
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted"
-                  >
-                    <User className="h-4 w-4" />
-                    Profile
-                  </Link>
+                  <PatientNavLinks variant="mobile" />
                 </div>
               </details>
             </div>

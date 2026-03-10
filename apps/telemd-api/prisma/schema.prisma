@@ -336,6 +336,11 @@ model Appointment {
   refundId            String?
   amountPaidCents     Int @default(0)
 
+  // Patient feedback (post-visit)
+  feedbackRating      Int?      // 1–5
+  feedbackComment     String?
+  feedbackAt          DateTime?
+
   // Retell Intake
   retellCallId    String?
   intakeStatus    IntakeStatus @default(NOT_STARTED)
