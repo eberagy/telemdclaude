@@ -53,6 +53,53 @@ jobs:
         env:
           AGENTOPS_DATABASE_URL: postgresql://telemd:test@localhost:5432/agentops
 
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: lint-typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter telemd-api db:generate
+          pnpm --filter agentops-api db:generate
+          pnpm --filter agentops-worker db:generate
+        env:
+          DATABASE_URL: postgresql://telemd:test@localhost:5432/telemd
+          AGENTOPS_DATABASE_URL: postgresql://telemd:test@localhost:5432/agentops
+
+      - name: Build telemd-web
+        run: pnpm --filter telemd-web build
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
+          NEXT_PUBLIC_AGENTOPS_API_URL: http://localhost:4000
+          DATABASE_URL: postgresql://telemd:test@localhost:5432/telemd
+          CLERK_SECRET_KEY: sk_test_placeholder
+          STRIPE_SECRET_KEY: sk_test_placeholder
+          ANTHROPIC_API_KEY: sk-ant-placeholder
+
+      - name: Build agentops-ui
+        run: pnpm --filter agentops-ui build
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
+          NEXT_PUBLIC_AGENTOPS_API_URL: http://localhost:4000
+          AGENTOPS_DATABASE_URL: postgresql://telemd:test@localhost:5432/agentops
+          DATABASE_URL: postgresql://telemd:test@localhost:5432/telemd
+          CLERK_SECRET_KEY: sk_test_placeholder
+          STRIPE_SECRET_KEY: sk_test_placeholder
+          ANTHROPIC_API_KEY: sk-ant-placeholder
+
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
