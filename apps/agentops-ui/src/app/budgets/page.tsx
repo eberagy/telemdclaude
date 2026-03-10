@@ -23,18 +23,32 @@ interface BudgetEntry {
   agent: { name: string; displayName: string };
 }
 
+interface HistoryEntry {
+  id: string;
+  agentId: string;
+  provider: string;
+  model: string;
+  tokens: number;
+  costCents: number;
+  createdAt: string;
+  run: { id: string } | null;
+}
+
 export default function BudgetsPage() {
   const [summaries, setSummaries] = useState<BudgetSummary[]>([]);
   const [entries, setEntries] = useState<BudgetEntry[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/budgets/summary").then((r) => r.json()),
       fetch("/api/budgets/entries?limit=50").then((r) => r.json()),
-    ]).then(([sumData, entData]) => {
+      fetch("/api/budgets/history").then((r) => r.json()),
+    ]).then(([sumData, entData, histData]) => {
       setSummaries(sumData.summaries ?? []);
       setEntries(entData.entries ?? []);
+      setHistory(histData.entries ?? []);
       setLoading(false);
     });
   }, []);
@@ -42,6 +56,7 @@ export default function BudgetsPage() {
   const totalToday = summaries.reduce((acc, s) => acc + s.spentTodayCents, 0);
   const totalWeek = summaries.reduce((acc, s) => acc + s.spentThisWeekCents, 0);
   const totalBudget = summaries.reduce((acc, s) => acc + s.budgetCentsPerDay, 0);
+  const todayPct = totalBudget > 0 ? Math.min(100, (totalToday / totalBudget) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -68,18 +83,30 @@ export default function BudgetsPage() {
           </div>
         ) : (
           <>
-            {/* Overview */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-              {[
-                { label: "Daily Budget (total)", value: `$${(totalBudget / 100).toFixed(2)}`, color: "text-gray-300" },
-                { label: "Spent Today", value: `$${(totalToday / 100).toFixed(2)}`, color: totalToday > totalBudget * 0.8 ? "text-red-400" : "text-teal-400" },
-                { label: "Spent This Week", value: `$${(totalWeek / 100).toFixed(2)}`, color: "text-purple-400" },
-              ].map((s) => (
-                <div key={s.label} className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-                  <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-                  <div className="text-sm text-gray-500 mt-1">{s.label}</div>
+            {/* Total-today banner */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="text-sm text-gray-500 mb-1">Total Spent Today</div>
+                  <div className={`text-3xl font-bold ${totalToday > totalBudget * 0.8 ? "text-red-400" : "text-teal-400"}`}>
+                    ${(totalToday / 100).toFixed(2)}
+                  </div>
                 </div>
-              ))}
+                <div className="text-right">
+                  <div className="text-sm text-gray-500 mb-1">Daily Budget</div>
+                  <div className="text-3xl font-bold text-gray-300">${(totalBudget / 100).toFixed(2)}</div>
+                </div>
+              </div>
+              <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${todayPct > 90 ? "bg-red-500" : todayPct > 70 ? "bg-amber-500" : "bg-teal-500"}`}
+                  style={{ width: `${todayPct}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-gray-600 mt-1">
+                <span>{todayPct.toFixed(1)}% used</span>
+                <span>This week: ${(totalWeek / 100).toFixed(2)}</span>
+              </div>
             </div>
 
             {/* Per-agent breakdown */}
@@ -106,7 +133,7 @@ export default function BudgetsPage() {
 
             {/* Recent entries */}
             <h2 className="text-lg font-semibold mb-3">Recent Charges</h2>
-            <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+            <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden mb-8">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-800 text-gray-500 text-xs">
@@ -126,6 +153,41 @@ export default function BudgetsPage() {
                       <td className="p-3 text-right text-teal-400">${(e.costCents / 100).toFixed(4)}</td>
                       <td className="p-3 text-right text-gray-500 text-xs">
                         {new Date(e.createdAt).toLocaleTimeString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Budget history (last 20 from /api/budgets/history) */}
+            <h2 className="text-lg font-semibold mb-3">Budget History</h2>
+            <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-800 text-gray-500 text-xs">
+                    <th className="text-left p-3">Entry ID</th>
+                    <th className="text-left p-3">Provider</th>
+                    <th className="text-left p-3">Model</th>
+                    <th className="text-right p-3">Tokens</th>
+                    <th className="text-right p-3">Cost</th>
+                    <th className="text-left p-3">Run</th>
+                    <th className="text-right p-3">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((h) => (
+                    <tr key={h.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                      <td className="p-3 text-gray-600 font-mono text-xs">{h.id.slice(0, 8)}…</td>
+                      <td className="p-3 text-gray-400">{h.provider}</td>
+                      <td className="p-3 text-gray-400 font-mono text-xs">{h.model}</td>
+                      <td className="p-3 text-right text-gray-400">{h.tokens.toLocaleString()}</td>
+                      <td className="p-3 text-right text-teal-400">${(h.costCents / 100).toFixed(4)}</td>
+                      <td className="p-3 text-gray-600 font-mono text-xs">
+                        {h.run ? h.run.id.slice(0, 8) + "…" : "—"}
+                      </td>
+                      <td className="p-3 text-right text-gray-500 text-xs">
+                        {new Date(h.createdAt).toLocaleString()}
                       </td>
                     </tr>
                   ))}
