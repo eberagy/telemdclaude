@@ -82,6 +82,7 @@ enum AuditEventType {
   INVITE_ACCEPTED
   SEAT_ACTIVATED
   SEAT_DEACTIVATED
+  PROFILE_UPDATE
 }
 
 enum NoteStatus {
