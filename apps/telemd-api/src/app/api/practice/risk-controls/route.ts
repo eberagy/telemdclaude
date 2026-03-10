@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { PracticeRiskControlsSchema } from "@telemd/shared";
+import { writeAuditLog } from "@/lib/audit";
 
 export async function GET(_req: NextRequest) {
   const { userId } = await auth();
@@ -48,6 +49,15 @@ export async function PATCH(req: NextRequest) {
   const practice = await prisma.practice.update({
     where: { id: member.practiceId },
     data: parsed.data,
+  });
+
+  await writeAuditLog({
+    practiceId: member.practiceId,
+    clerkUserId: userId,
+    memberId: member.id,
+    eventType: "EDIT_NOTE",
+    resourceType: "PracticeRiskControls",
+    resourceId: member.practiceId,
   });
 
   return NextResponse.json({ practice });

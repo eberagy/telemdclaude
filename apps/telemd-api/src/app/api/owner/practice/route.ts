@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { writeAuditLog } from "@/lib/audit";
 
 const UpdatePracticeSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -78,6 +79,15 @@ export async function PATCH(req: NextRequest) {
     const practice = await prisma.practice.update({
       where: { id: owner.practiceId },
       data: parsed.data,
+    });
+
+    await writeAuditLog({
+      practiceId: owner.practiceId,
+      clerkUserId: userId,
+      memberId: owner.id,
+      eventType: "EDIT_NOTE",
+      resourceType: "Practice",
+      resourceId: owner.practiceId,
     });
 
     return NextResponse.json({ practice });

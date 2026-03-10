@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { writeAuditLog } from "@/lib/audit";
 
 const IntakeFieldSchema = z.object({
   key: z.string(),
@@ -63,6 +64,15 @@ export async function POST(req: NextRequest) {
         name: parsed.data.name,
         fields: parsed.data.fields,
       },
+    });
+
+    await writeAuditLog({
+      practiceId: owner.practiceId,
+      clerkUserId: userId,
+      memberId: owner.id,
+      eventType: "INVITE_SENT",
+      resourceType: "IntakeTemplate",
+      resourceId: template.id,
     });
 
     return NextResponse.json({ template }, { status: 201 });

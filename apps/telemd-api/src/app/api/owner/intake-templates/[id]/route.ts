@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { writeAuditLog } from "@/lib/audit";
 
 const UpdateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -44,6 +45,15 @@ export async function PATCH(
       data: parsed.data,
     });
 
+    await writeAuditLog({
+      practiceId: owner.practiceId,
+      clerkUserId: userId,
+      memberId: owner.id,
+      eventType: "EDIT_NOTE",
+      resourceType: "IntakeTemplate",
+      resourceId: id,
+    });
+
     return NextResponse.json({ template: updated });
   } catch (err) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -71,6 +81,16 @@ export async function DELETE(
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     await prisma.intakeTemplate.delete({ where: { id } });
+
+    await writeAuditLog({
+      practiceId: owner.practiceId,
+      clerkUserId: userId,
+      memberId: owner.id,
+      eventType: "EDIT_NOTE",
+      resourceType: "IntakeTemplate",
+      resourceId: id,
+      metadata: { action: "delete" },
+    });
 
     return NextResponse.json({ deleted: true });
   } catch (err) {

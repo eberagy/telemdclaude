@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { writeAuditLog } from "@/lib/audit";
 
 const AppointmentTypeSchema = z.object({
   name: z.string().min(1).max(100),
@@ -55,6 +56,15 @@ export async function POST(req: NextRequest) {
 
     const type = await prisma.appointmentType.create({
       data: { ...parsed.data, practiceId: owner.practiceId },
+    });
+
+    await writeAuditLog({
+      practiceId: owner.practiceId,
+      clerkUserId: userId,
+      memberId: owner.id,
+      eventType: "INVITE_SENT",
+      resourceType: "AppointmentType",
+      resourceId: type.id,
     });
 
     return NextResponse.json({ appointmentType: type }, { status: 201 });
