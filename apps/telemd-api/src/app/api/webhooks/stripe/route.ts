@@ -8,6 +8,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export const dynamic = "force-dynamic";
 
+// In-memory idempotency guard — prevents double-processing on retry within the same instance lifetime.
+// For multi-instance deployments, replace with a short-TTL Redis SET.
+const processedEventIds = new Set<string>();
+
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
@@ -28,6 +32,19 @@ export async function POST(req: NextRequest) {
     console.error("[stripe webhook] Invalid signature", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
+
+  // Replay protection: reject events older than 5 minutes
+  const ageSeconds = Math.floor(Date.now() / 1000) - event.created;
+  if (ageSeconds > 300) {
+    console.warn("[stripe webhook] Rejected stale event", event.id, `age=${ageSeconds}s`);
+    return NextResponse.json({ error: "Event too old" }, { status: 400 });
+  }
+
+  // Idempotency guard: skip events already processed this instance
+  if (processedEventIds.has(event.id)) {
+    return NextResponse.json({ received: true });
+  }
+  processedEventIds.add(event.id);
 
   try {
     switch (event.type) {
