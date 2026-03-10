@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/utils";
 import { Calendar, Video, CheckCircle, AlertTriangle, Clock } from "lucide-react";
@@ -105,6 +104,14 @@ export default function ClinicianSchedulePage() {
   );
 }
 
+const STATUS_CHIP: Record<string, string> = {
+  CONFIRMED: "bg-blue-100 text-blue-700",
+  COMPLETED: "bg-green-100 text-green-700",
+  CANCELLED: "bg-gray-100 text-gray-600",
+  NO_SHOW: "bg-red-100 text-red-700",
+  IN_PROGRESS: "bg-violet-100 text-violet-700",
+};
+
 function ScheduleCard({ appointment: a }: { appointment: Appointment }) {
   const intakeDone = a.intakeStatus === "COMPLETED";
   const now = new Date();
@@ -118,9 +125,11 @@ function ScheduleCard({ appointment: a }: { appointment: Appointment }) {
         <div className="space-y-1 flex-1">
           <div className="flex items-center gap-2">
             <span className="font-medium text-sm">{a.appointmentType.name}</span>
-            <Badge variant="secondary" className="text-xs">
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_CHIP[a.status] ?? "bg-gray-100 text-gray-600"}`}
+            >
               {a.status.replace(/_/g, " ")}
-            </Badge>
+            </span>
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
