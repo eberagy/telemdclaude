@@ -188,6 +188,7 @@ model AgentMemory {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([agentId, key])
   @@index([agentId])
 }
 

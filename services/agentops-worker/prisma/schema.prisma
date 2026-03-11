@@ -58,12 +58,34 @@ model Agent {
   spentTodayCents   Int       @default(0)
   lastResetAt   DateTime      @default(now())
   allowedTools  String[]      // list of permitted tool names
+  model         String        @default("claude-sonnet-4-6")
 
   runs      AgentRun[]
   budgets   BudgetEntry[]
+  memories  AgentMemory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// AGENT MEMORY
+// ============================================================
+
+model AgentMemory {
+  id         String   @id @default(cuid())
+  agentId    String
+  key        String
+  value      String
+  importance Int      @default(1)
+
+  agent Agent @relation(fields: [agentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agentId, key])
+  @@index([agentId])
 }
 
 // ============================================================

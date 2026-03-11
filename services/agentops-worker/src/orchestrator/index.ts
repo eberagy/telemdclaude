@@ -159,7 +159,17 @@ Respond with ONLY the agent name (no explanation).`,
   async executeAgent(runId: string, agentName: AgentName) {
     const run = await prisma.agentRun.findUnique({
       where: { id: runId },
-      include: { agent: true, task: true },
+      include: {
+        agent: {
+          include: {
+            memories: {
+              orderBy: [{ importance: "desc" }, { updatedAt: "desc" }],
+              take: 20,
+            },
+          },
+        },
+        task: true,
+      },
     });
 
     if (!run) return;
@@ -170,11 +180,11 @@ Respond with ONLY the agent name (no explanation).`,
     });
 
     try {
-      const systemPrompt = buildAgentSystemPrompt(agentName, run.agent);
+      const systemPrompt = buildAgentSystemPrompt(agentName, run.agent, run.agent.memories);
 
-      // Use larger model for execution
+      // Use agent's configured model (defaults to claude-sonnet-4-6)
       const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
+        model: run.agent.model,
         max_tokens: 4096,
         system: systemPrompt,
         messages: [
@@ -188,6 +198,9 @@ Respond with ONLY the agent name (no explanation).`,
       const result = response.content[0].type === "text" ? response.content[0].text : "";
       const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
       const costCents = Math.ceil(tokensUsed * 0.003); // ~$0.003/1K tokens estimate
+
+      // Auto-save notable facts from this run as agent memories
+      await extractAndSaveMemories(run.agent.id, agentName, run.prompt, result);
 
       // Check if action requires approval
       const requiresApproval =
@@ -329,15 +342,29 @@ function getDefaultTools(agentName: AgentName): string[] {
   return perAgent[agentName] ?? common;
 }
 
+interface AgentMemoryRecord {
+  key: string;
+  value: string;
+  importance: number;
+}
+
 function buildAgentSystemPrompt(
   agentName: AgentName,
-  agent: { description: string; autonomyLevel: string; allowedTools: string[] }
+  agent: { description: string; autonomyLevel: string; allowedTools: string[] },
+  memories: AgentMemoryRecord[] = []
 ): string {
   const AUTONOMY_INSTRUCTIONS: Record<string, string> = {
     DRAFT_ONLY: "DRAFT ONLY MODE: You must NOT execute any actions. Only draft plans and outputs for human approval.",
     NORMAL: "NORMAL MODE: You may execute low-risk actions. For any significant action (merging, deploying, sending messages), clearly mark as REQUIRES_APPROVAL.",
     AGGRESSIVE: "AGGRESSIVE MODE: You may execute most actions. Still flag CRITICAL risk actions for approval.",
   };
+
+  const memoryBlock =
+    memories.length > 0
+      ? `\n## Agent Memory (persistent context from past runs)\n${memories
+          .map((m) => `- [${m.key}] ${m.value}`)
+          .join("\n")}\n`
+      : "";
 
   return `You are the ${agentName.toUpperCase()} agent for TeleMD, an AI-powered telehealth platform.
 
@@ -346,7 +373,7 @@ Role: ${agent.description}
 Autonomy Level: ${AUTONOMY_INSTRUCTIONS[agent.autonomyLevel] ?? AUTONOMY_INSTRUCTIONS.NORMAL}
 
 Allowed Tools: ${agent.allowedTools.join(", ")}
-
+${memoryBlock}
 IMPORTANT RULES:
 1. Never access or log PHI (patient health information)
 2. Always mark high-risk actions with "REQUIRES_APPROVAL: [action]"
@@ -361,6 +388,46 @@ ACTION: <exact action to take>
 RISK: <LOW|MEDIUM|HIGH|CRITICAL>
 ROLLBACK: <how to undo>
 WHY_SAFE: <brief justification>`;
+}
+
+/** Use Claude Haiku to extract 0–3 notable facts from a run and save as memories. */
+async function extractAndSaveMemories(
+  agentId: string,
+  agentName: AgentName,
+  prompt: string,
+  result: string
+): Promise<void> {
+  try {
+    const extraction = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 512,
+      system: `Extract 0–3 notable facts from this agent run worth remembering for future runs.
+Only extract facts that are durable (architectural decisions, established patterns, learned constraints).
+Skip transient details (specific file contents, current ticket numbers).
+Respond as a JSON array: [{"key": "short_label", "value": "one sentence fact", "importance": 1-5}]
+If nothing notable, respond with: []`,
+      messages: [
+        {
+          role: "user",
+          content: `Agent: ${agentName}\nTask: ${prompt.substring(0, 500)}\nResult: ${result.substring(0, 1000)}`,
+        },
+      ],
+    });
+
+    const text = extraction.content[0].type === "text" ? extraction.content[0].text.trim() : "[]";
+    const facts = JSON.parse(text) as AgentMemoryRecord[];
+
+    for (const fact of facts.slice(0, 3)) {
+      if (!fact.key || !fact.value) continue;
+      await prisma.agentMemory.upsert({
+        where: { agentId_key: { agentId, key: fact.key } },
+        update: { value: fact.value, importance: fact.importance ?? 1, updatedAt: new Date() },
+        create: { agentId, key: fact.key, value: fact.value, importance: fact.importance ?? 1 },
+      });
+    }
+  } catch {
+    // Memory extraction is best-effort — never block main run
+  }
 }
 
 function sleep(ms: number): Promise<void> {
