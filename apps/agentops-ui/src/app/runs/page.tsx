@@ -128,6 +128,14 @@ export default function RunsPage() {
                         </pre>
                       </div>
                     )}
+                    <div className="pt-1">
+                      <Link
+                        href={`/runs/${r.id}`}
+                        className="text-xs text-violet-400 hover:text-violet-300"
+                      >
+                        View full details →
+                      </Link>
+                    </div>
                   </div>
                 )}
               </div>
