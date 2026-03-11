@@ -16,6 +16,7 @@ enum AgentRunStatus {
   QUEUED
   RUNNING
   AWAITING_APPROVAL
+  AWAITING_INPUT
   COMPLETED
   FAILED
   CANCELLED
@@ -110,8 +111,10 @@ model AgentRun {
   logs        Json           @default("[]")
   tokenUsed   Int            @default(0)
   costCents   Int            @default(0)
-  startedAt   DateTime?
-  completedAt DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  question        String?    // pending question for human review (set when status=AWAITING_INPUT)
+  questionAskedAt DateTime?
 
   task  QueuedTask? @relation(fields: [taskId], references: [id])
   agent Agent       @relation(fields: [agentId], references: [id])
