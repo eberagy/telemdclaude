@@ -20,6 +20,29 @@ import { IntakeCallPanel } from "@/components/intake/IntakeCallPanel";
 import { VideoVisitPanel } from "@/components/visit/VideoVisitPanel";
 import { isWithinJoinWindow } from "@telemd/shared";
 
+const LIVE_STATUS_CONFIG: Record<string, { label: string; className: string; pulse: boolean }> = {
+  CONFIRMED: {
+    label: "Waiting for clinician",
+    className: "border-blue-200 bg-blue-50 text-blue-700",
+    pulse: false,
+  },
+  INTAKE_PENDING: {
+    label: "Intake in progress",
+    className: "border-amber-200 bg-amber-50 text-amber-700",
+    pulse: true,
+  },
+  IN_PROGRESS: {
+    label: "Visit in progress",
+    className: "border-violet-200 bg-violet-50 text-violet-700",
+    pulse: true,
+  },
+  COMPLETED: {
+    label: "Visit complete",
+    className: "border-green-200 bg-green-50 text-green-700",
+    pulse: false,
+  },
+};
+
 interface SOAPSummary {
   id: string;
   subjective: string;
@@ -78,15 +101,41 @@ export default function PatientAppointmentDetailPage({
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/appointments/${id}`)
       .then((r) => r.json())
       .then((data) => {
         setAppointment(data.appointment);
+        setLiveStatus(data.appointment?.status ?? null);
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  }, [id]);
+
+  // SSE for live status updates
+  useEffect(() => {
+    const es = new EventSource(`/api/appointments/${id}/events`);
+    es.onmessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data as string) as { status?: string };
+        if (data.status) {
+          setLiveStatus(data.status);
+          if (data.status === "COMPLETED" || data.status === "CANCELLED") {
+            es.close();
+          }
+        }
+      } catch {
+        // ignore parse errors
+      }
+    };
+    es.onerror = () => {
+      es.close();
+    };
+    return () => {
+      es.close();
+    };
   }, [id]);
 
   const handlePayNow = async () => {
@@ -154,6 +203,23 @@ export default function PatientAppointmentDetailPage({
         <ArrowLeft className="h-4 w-4" />
         Back to Appointments
       </Link>
+
+      {/* Live status banner */}
+      {liveStatus && LIVE_STATUS_CONFIG[liveStatus] && (
+        <div
+          className={`flex items-center gap-2.5 px-4 py-3 rounded-lg border text-sm font-medium ${LIVE_STATUS_CONFIG[liveStatus].className}`}
+        >
+          <span
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              LIVE_STATUS_CONFIG[liveStatus].pulse
+                ? "animate-pulse bg-current"
+                : "bg-current"
+            }`}
+          />
+          {LIVE_STATUS_CONFIG[liveStatus].label}
+          <span className="ml-auto text-xs font-normal opacity-60">Live</span>
+        </div>
+      )}
 
       {/* Main card */}
       <Card>
