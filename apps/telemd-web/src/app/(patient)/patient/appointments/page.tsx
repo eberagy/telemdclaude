@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTime, formatPrice } from "@/lib/utils";
-import { Calendar, Clock, CreditCard, Phone, AlertTriangle } from "lucide-react";
+import { Calendar, Clock, CreditCard, Phone, AlertTriangle, Timer } from "lucide-react";
 
 interface Appointment {
   id: string;
@@ -32,6 +32,83 @@ const STATUS_COLORS: Record<string, "default" | "secondary" | "success" | "warni
   NO_SHOW: "destructive",
   PAYMENT_FAILED: "destructive",
 };
+
+function formatCountdown(msRemaining: number): string {
+  if (msRemaining <= 0) return "Starting now";
+  const h = Math.floor(msRemaining / 3_600_000);
+  const m = Math.floor((msRemaining % 3_600_000) / 60_000);
+  const s = Math.floor((msRemaining % 60_000) / 1_000);
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function CountdownBanner({ appointment: a }: { appointment: Appointment }) {
+  const [msRemaining, setMsRemaining] = useState(
+    new Date(a.slotStart).getTime() - Date.now()
+  );
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setMsRemaining(new Date(a.slotStart).getTime() - Date.now());
+    }, 1000);
+    return () => clearInterval(id);
+  }, [a.slotStart]);
+
+  const intakeComplete = a.intakeStatus === "COMPLETED";
+
+  return (
+    <Card className="border-2 border-primary bg-primary/5 shadow-md">
+      <CardContent className="p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-primary">
+              <Timer className="h-5 w-5" />
+              <span className="text-xs font-semibold uppercase tracking-wide">
+                Upcoming visit
+              </span>
+            </div>
+            <h2 className="text-lg font-bold">
+              {a.appointmentType.name} with Dr.{" "}
+              {a.clinician.member.firstName} {a.clinician.member.lastName}
+            </h2>
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                {formatDateTime(a.slotStart)}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" />
+                {a.appointmentType.durationMinutes} min
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-mono font-bold text-primary tabular-nums">
+                {formatCountdown(msRemaining)}
+              </span>
+              <Badge variant={intakeComplete ? "success" : "warning"}>
+                Intake {intakeComplete ? "complete" : "pending"}
+              </Badge>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:items-end">
+            {!intakeComplete && (
+              <Link href={`/patient/appointments/${a.id}?action=intake`}>
+                <Button size="sm" variant="outline" className="w-full sm:w-auto">
+                  <Phone className="h-4 w-4 mr-1" />
+                  Complete Intake
+                </Button>
+              </Link>
+            )}
+            <Link href={`/patient/appointments/${a.id}`}>
+              <Button size="sm" className="w-full sm:w-auto">View Details</Button>
+            </Link>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function PatientAppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -59,14 +136,25 @@ export default function PatientAppointmentsPage() {
     );
   }
 
+  const now = Date.now();
+  const in24h = now + 24 * 60 * 60 * 1000;
+
+  // Soonest CONFIRMED appointment within 24 hours
+  const imminent = appointments
+    .filter((a) => {
+      const t = new Date(a.slotStart).getTime();
+      return a.status === "CONFIRMED" && t > now && t <= in24h;
+    })
+    .sort((a, b) => new Date(a.slotStart).getTime() - new Date(b.slotStart).getTime())[0];
+
   const upcoming = appointments.filter(
     (a) =>
-      new Date(a.slotStart) > new Date() &&
+      new Date(a.slotStart).getTime() > now &&
       !["CANCELLED", "RESCHEDULED"].includes(a.status)
   );
   const past = appointments.filter(
     (a) =>
-      new Date(a.slotStart) <= new Date() ||
+      new Date(a.slotStart).getTime() <= now ||
       ["CANCELLED", "RESCHEDULED", "COMPLETED"].includes(a.status)
   );
 
@@ -87,6 +175,9 @@ export default function PatientAppointmentsPage() {
           <Button>Book New Appointment</Button>
         </Link>
       </div>
+
+      {/* Countdown banner for imminent appointment */}
+      {imminent && <CountdownBanner appointment={imminent} />}
 
       {/* Upcoming */}
       <section>
