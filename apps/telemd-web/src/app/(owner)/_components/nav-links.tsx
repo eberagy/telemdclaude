@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, Users, Calendar, FileText, CreditCard, Shield, ClipboardList } from "lucide-react";
+import { Settings, Users, Calendar, FileText, CreditCard, Shield, ClipboardList, BarChart3 } from "lucide-react";
 
 const navItems = [
   { href: "/owner/settings", label: "Settings", icon: Settings },
   { href: "/owner/team", label: "Team", icon: Users },
+  { href: "/owner/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/owner/appointment-types", label: "Visit Types", icon: Calendar },
   { href: "/owner/intake-templates", label: "Intake", icon: FileText },
   { href: "/owner/billing", label: "Billing", icon: CreditCard },
