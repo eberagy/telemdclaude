@@ -54,6 +54,11 @@ type BookingForm = z.infer<typeof BookingSchema>;
 
 type Step = "type" | "clinician" | "slot" | "confirm";
 
+/** Returns a YYYY-MM-DD key for a given Date in local time. */
+function toDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default function BookingPage({
   params,
 }: {
@@ -66,6 +71,7 @@ export default function BookingPage({
   const [step, setStep] = useState<Step>("type");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const {
     register,
@@ -80,6 +86,12 @@ export default function BookingPage({
   const selectedTypeId = watch("appointmentTypeId");
   const selectedClinicianId = watch("clinicianId");
   const selectedSlot = watch("slotStart");
+
+  // Reset date filter when clinician changes
+  useEffect(() => {
+    setSelectedDate(null);
+    setValue("slotStart", "");
+  }, [selectedClinicianId, setValue]);
 
   useEffect(() => {
     fetch(`/api/practices/${practiceSlug}`)
@@ -113,13 +125,11 @@ export default function BookingPage({
     setSubmitting(false);
 
     if (res.status === 401) {
-      // Not signed in — redirect to sign-in with return URL
       window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
       return;
     }
 
     if (res.ok) {
-      // Redirect to payment
       const checkoutRes = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -148,7 +158,6 @@ export default function BookingPage({
     );
   }
 
-  // PA-only gating
   if (practice.serviceState !== "PA") {
     return (
       <div className="container py-12 max-w-md text-center">
@@ -165,6 +174,14 @@ export default function BookingPage({
   const selectedClinician = clinicianSlots.find(
     (c) => c.clinicianId === selectedClinicianId
   );
+
+  // Compute 14-day range starting today
+  const dateRange = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -266,7 +283,7 @@ export default function BookingPage({
             </div>
           )}
 
-          {/* Step 2: Clinician + Slots */}
+          {/* Step 2: Clinician + Date Picker + Slots */}
           {step === "clinician" && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold">Choose Clinician</h2>
@@ -278,63 +295,132 @@ export default function BookingPage({
                   </CardContent>
                 </Card>
               ) : (
-                clinicianSlots.map((c) => (
-                  <Card
-                    key={c.clinicianId}
-                    className={`border-2 transition-colors ${
-                      selectedClinicianId === c.clinicianId
-                        ? "border-primary"
-                        : "hover:border-primary/40"
-                    }`}
-                  >
-                    <CardHeader
-                      className="pb-2 cursor-pointer"
-                      onClick={() => {
-                        setValue("clinicianId", c.clinicianId);
-                        setValue("slotStart", "");
-                      }}
+                clinicianSlots.map((c) => {
+                  // Pre-compute which dates in the 14-day range have slots
+                  const datesWithSlots = new Set(
+                    c.slots.map((slot) => toDateKey(new Date(slot)))
+                  );
+                  const filteredSlots = selectedDate
+                    ? c.slots.filter((slot) => toDateKey(new Date(slot)) === selectedDate)
+                    : c.slots;
+
+                  return (
+                    <Card
+                      key={c.clinicianId}
+                      className={`border-2 transition-colors ${
+                        selectedClinicianId === c.clinicianId
+                          ? "border-primary"
+                          : "hover:border-primary/40"
+                      }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                          <User className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">{c.clinicianName}</h3>
-                          {c.specialty && (
-                            <p className="text-sm text-muted-foreground">{c.specialty}</p>
+                      <CardHeader
+                        className="pb-2 cursor-pointer"
+                        onClick={() => {
+                          setValue("clinicianId", c.clinicianId);
+                          setValue("slotStart", "");
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                            <User className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">{c.clinicianName}</h3>
+                            {c.specialty && (
+                              <p className="text-sm text-muted-foreground">{c.specialty}</p>
+                            )}
+                          </div>
+                          {selectedClinicianId === c.clinicianId && (
+                            <CheckCircle className="h-5 w-5 text-primary ml-auto" />
                           )}
                         </div>
-                        {selectedClinicianId === c.clinicianId && (
-                          <CheckCircle className="h-5 w-5 text-primary ml-auto" />
-                        )}
-                      </div>
-                    </CardHeader>
-                    {selectedClinicianId === c.clinicianId && (
-                      <CardContent className="pt-0">
-                        <p className="text-sm font-medium mb-2">Available Times</p>
-                        <div className="grid grid-cols-3 gap-2">
-                          {c.slots.slice(0, 12).map((slot) => (
-                            <button
-                              key={slot}
-                              type="button"
-                              onClick={() => setValue("slotStart", slot)}
-                              className={`text-sm py-2 px-3 rounded-md border text-center transition-colors ${
-                                selectedSlot === slot
-                                  ? "bg-primary text-white border-primary"
-                                  : "hover:border-primary/40 bg-background"
-                              }`}
-                            >
-                              {new Date(slot).toLocaleTimeString([], {
-                                hour: "numeric",
-                                minute: "2-digit",
+                      </CardHeader>
+
+                      {selectedClinicianId === c.clinicianId && (
+                        <CardContent className="pt-0 space-y-4">
+                          {/* Date picker */}
+                          <div>
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                              Filter by date
+                            </p>
+                            <div className="flex gap-1.5 overflow-x-auto pb-1">
+                              {dateRange.map((day) => {
+                                const key = toDateKey(day);
+                                const hasSlots = datesWithSlots.has(key);
+                                const isSelected = selectedDate === key;
+                                return (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    disabled={!hasSlots}
+                                    onClick={() => {
+                                      const next = isSelected ? null : key;
+                                      setSelectedDate(next);
+                                      // Clear slot if it's not on the new date
+                                      if (selectedSlot && next && toDateKey(new Date(selectedSlot)) !== next) {
+                                        setValue("slotStart", "");
+                                      }
+                                    }}
+                                    className={`flex-shrink-0 flex flex-col items-center px-2 py-1.5 rounded-md text-xs border transition-colors min-w-[44px] ${
+                                      isSelected
+                                        ? "bg-primary text-white border-primary"
+                                        : hasSlots
+                                        ? "bg-background hover:border-primary/40"
+                                        : "bg-muted opacity-40 cursor-not-allowed"
+                                    }`}
+                                  >
+                                    <span className="font-medium">
+                                      {day.toLocaleDateString("en-US", { weekday: "short" })}
+                                    </span>
+                                    <span>{day.getDate()}</span>
+                                  </button>
+                                );
                               })}
-                            </button>
-                          ))}
-                        </div>
-                      </CardContent>
-                    )}
-                  </Card>
-                ))
+                            </div>
+                          </div>
+
+                          {/* Slot grid */}
+                          <div>
+                            <p className="text-sm font-medium mb-2">
+                              {selectedDate
+                                ? `Times on ${new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
+                                    weekday: "long",
+                                    month: "short",
+                                    day: "numeric",
+                                  })}`
+                                : "All Available Times"}
+                            </p>
+                            {filteredSlots.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">
+                                No slots on this date. Select another day.
+                              </p>
+                            ) : (
+                              <div className="grid grid-cols-3 gap-2">
+                                {filteredSlots.map((slot) => (
+                                  <button
+                                    key={slot}
+                                    type="button"
+                                    onClick={() => setValue("slotStart", slot)}
+                                    className={`text-sm py-2 px-3 rounded-md border text-center transition-colors ${
+                                      selectedSlot === slot
+                                        ? "bg-primary text-white border-primary"
+                                        : "hover:border-primary/40 bg-background"
+                                    }`}
+                                  >
+                                    {new Date(slot).toLocaleTimeString([], {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                    })}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                })
               )}
               <div className="flex gap-3">
                 <Button type="button" variant="outline" onClick={() => setStep("type")}>
