@@ -545,6 +545,20 @@ model AuditLog {
 }
 
 // ============================================================
+// PATIENT NOTIFICATION PREFERENCES
+// ============================================================
+
+model PatientNotificationPreferences {
+  id             String   @id @default(cuid())
+  clerkUserId    String   @unique
+  emailReminders Boolean  @default(true)
+  smsReminders   Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+
+  @@index([clerkUserId])
+}
+
+// ============================================================
 // SLOT LOCK (distributed, prevents double-booking)
 // ============================================================
 
