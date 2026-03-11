@@ -6,6 +6,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { PrismaClient } from "../../generated/prisma";
 import { sendApprovalRequest, sendOpsAlert } from "../integrations/slack.js";
+import { delegateToAgent } from "@telemd/agent-tools";
 import type { AgentName } from "@telemd/shared";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
@@ -86,6 +87,20 @@ class Orchestrator {
     });
 
     for (const task of tasks) {
+      // Dependency check: skip if any blocking task is not yet COMPLETED
+      if (task.blockedBy.length > 0) {
+        const blockers = await prisma.queuedTask.findMany({
+          where: { id: { in: task.blockedBy }, status: { not: "COMPLETED" } },
+          select: { id: true },
+        });
+        if (blockers.length > 0) {
+          console.log(
+            `[orchestrator] Task "${task.title}" (${task.id}) blocked by ${blockers.length} incomplete task(s) — skipping`
+          );
+          continue;
+        }
+      }
+
       await this.routeTask(task.id);
     }
   }
@@ -201,6 +216,10 @@ Respond with ONLY the agent name (no explanation).`,
 
       // Auto-save notable facts from this run as agent memories
       await extractAndSaveMemories(run.agent.id, agentName, run.prompt, result);
+
+      // Parse agent-to-agent delegations from result
+      // Format: DELEGATE: toAgent | Task Title | Task description
+      await parseDelegations(result, runId);
 
       // Check if action requires approval
       const requiresApproval =
@@ -387,7 +406,11 @@ SUMMARY: <one line>
 ACTION: <exact action to take>
 RISK: <LOW|MEDIUM|HIGH|CRITICAL>
 ROLLBACK: <how to undo>
-WHY_SAFE: <brief justification>`;
+WHY_SAFE: <brief justification>
+
+To delegate a sub-task to another agent, include a line:
+DELEGATE: <agentName> | <Task Title> | <Task description>
+Example: DELEGATE: qa | Run test suite | Run all unit and integration tests for the auth module`;
 }
 
 /** Use Claude Haiku to extract 0–3 notable facts from a run and save as memories. */
@@ -427,6 +450,28 @@ If nothing notable, respond with: []`,
     }
   } catch {
     // Memory extraction is best-effort — never block main run
+  }
+}
+
+/**
+ * Parse DELEGATE: lines from agent output and create sub-tasks.
+ * Format: DELEGATE: <toAgent> | <Task Title> | <Task description>
+ * Example: DELEGATE: qa | Run test suite | Run all unit and integration tests
+ */
+async function parseDelegations(result: string, parentRunId: string): Promise<void> {
+  const delegatePattern = /^DELEGATE:\s*(\w+)\s*\|\s*(.+?)\s*\|\s*(.+)$/gim;
+  let match;
+  while ((match = delegatePattern.exec(result)) !== null) {
+    const [, toAgent, title, description] = match;
+    const res = await delegateToAgent(
+      { toAgent, taskTitle: title.trim(), taskDescription: description.trim(), priority: 5 },
+      parentRunId
+    );
+    if (res.ok) {
+      console.log(`[orchestrator] Delegated sub-task '${title}' to ${toAgent} (taskId=${(res.data as { taskId: string }).taskId})`);
+    } else {
+      console.warn(`[orchestrator] Delegation to ${toAgent} failed: ${res.error}`);
+    }
   }
 }
 

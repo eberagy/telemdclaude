@@ -82,6 +82,7 @@ model QueuedTask {
   assignedTo  String?  // agent name
   status      String   @default("PENDING") // PENDING, ASSIGNED, COMPLETED, CANCELLED
   labels      String[]
+  blockedBy   String[] // IDs of tasks that must be COMPLETED before this one can run
   metadata    Json     @default("{}")
 
   runs AgentRun[]
