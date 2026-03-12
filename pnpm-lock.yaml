@@ -325,6 +325,25 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  packages/agent-tools:
+    dependencies:
+      '@octokit/rest':
+        specifier: ^21.0.0
+        version: 21.1.1
+      '@slack/web-api':
+        specifier: ^7.0.0
+        version: 7.14.1
+      zod:
+        specifier: ^3.22.0
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.35
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   packages/shared:
     dependencies:
       zod:
@@ -349,6 +368,9 @@ importers:
       '@slack/web-api':
         specifier: ^7.0.0
         version: 7.14.1
+      '@telemd/agent-tools':
+        specifier: workspace:*
+        version: link:../../packages/agent-tools
       '@telemd/shared':
         specifier: workspace:*
         version: link:../../packages/shared
