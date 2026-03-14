@@ -28,6 +28,11 @@ export async function sendApprovalRequest(approval: {
   const approvalUrl = `${AGENTOPS_URL}/approvals/${approval.token}`;
   const riskEmoji = RISK_EMOJI[approval.risk] ?? ":white_circle:";
 
+  // Email one-click links (when sending approval notification emails):
+  // APPROVE: `${AGENTOPS_URL}/api/approvals/email-action?token=${approval.token}&decision=APPROVED&sig=${hmac}`
+  // DENY:    `${AGENTOPS_URL}/api/approvals/email-action?token=${approval.token}&decision=DENIED&sig=${hmac}`
+  // Where hmac = createHmac("sha256", AGENTOPS_EMAIL_SECRET).update(token + decision).digest("hex")
+
   try {
     await slack.chat.postMessage({
       channel: APPROVAL_CHANNEL,
