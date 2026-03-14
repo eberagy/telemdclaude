@@ -16,23 +16,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [total, active, pending, inactive, byPractice] = await Promise.all([
-    prisma.practiceMember.count({ where: { role: "Clinician" } }),
-    prisma.practiceMember.count({ where: { role: "Clinician", seatStatus: "ACTIVE" } }),
-    prisma.practiceMember.count({ where: { role: "Clinician", seatStatus: "PENDING" } }),
-    prisma.practiceMember.count({ where: { role: "Clinician", seatStatus: "INACTIVE" } }),
-    prisma.practiceMember.groupBy({
-      by: ["practiceId"],
-      _count: { id: true },
-      where: { role: "Clinician", seatStatus: "ACTIVE" },
-    }),
+  // seatStatus lives on ClinicianProfile (1-1 with PracticeMember via memberId)
+  const [total, active, pending, inactive] = await Promise.all([
+    prisma.clinicianProfile.count(),
+    prisma.clinicianProfile.count({ where: { seatStatus: "ACTIVE" } }),
+    prisma.clinicianProfile.count({ where: { seatStatus: "PENDING" } }),
+    prisma.clinicianProfile.count({ where: { seatStatus: "INACTIVE" } }),
   ]);
+
+  // Count distinct practices with at least one active clinician seat
+  const activeClinicians = await prisma.practiceMember.findMany({
+    where: { role: "Clinician", clinician: { seatStatus: "ACTIVE" } },
+    select: { practiceId: true },
+    distinct: ["practiceId"],
+  });
 
   return NextResponse.json({
     total,
     active,
     pending,
     inactive,
-    practiceCount: byPractice.length,
+    practiceCount: activeClinicians.length,
   });
 }
