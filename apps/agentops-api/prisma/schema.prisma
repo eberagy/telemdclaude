@@ -115,6 +115,8 @@ model AgentRun {
   completedAt     DateTime?
   question        String?    // pending question for human review (set when status=AWAITING_INPUT)
   questionAskedAt DateTime?
+  ratingScore     Int?       // 1-5 operator rating after run completes
+  ratingFeedback  String?
 
   task  QueuedTask? @relation(fields: [taskId], references: [id])
   agent Agent       @relation(fields: [agentId], references: [id])
