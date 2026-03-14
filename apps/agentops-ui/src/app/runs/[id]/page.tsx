@@ -36,6 +36,10 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   const [answer, setAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [feedback, setFeedback] = useState("");
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [rated, setRated] = useState(false);
 
   const fetchRun = () =>
     fetch(`/api/runs/${id}`)
@@ -49,6 +53,18 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   useEffect(() => {
     fetchRun();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const submitRating = async () => {
+    if (!rating) return;
+    setSubmittingRating(true);
+    await fetch(`/api/runs/${id}/rate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rating, feedback }),
+    });
+    setSubmittingRating(false);
+    setRated(true);
+  };
 
   const submitAnswer = async () => {
     if (!answer.trim()) return;
@@ -197,6 +213,48 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
             )}
           </div>
         </div>
+
+        {/* Rating widget — shown after COMPLETED or FAILED */}
+        {(run.status === "COMPLETED" || run.status === "FAILED") && (
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+            {rated ? (
+              <p className="text-green-400 text-sm">✓ Thanks for your feedback!</p>
+            ) : (
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-300">Rate this run</h3>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      className={`text-2xl leading-none transition-colors ${
+                        rating >= star ? "text-amber-400" : "text-gray-600 hover:text-amber-300"
+                      }`}
+                      aria-label={`Rate ${star} star${star !== 1 ? "s" : ""}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  rows={3}
+                  placeholder="Optional feedback..."
+                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500 resize-none"
+                />
+                <button
+                  onClick={submitRating}
+                  disabled={!rating || submittingRating}
+                  className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-1.5 rounded text-sm font-medium transition-colors"
+                >
+                  {submittingRating ? "Submitting…" : "Submit"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
