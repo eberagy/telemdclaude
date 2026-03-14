@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Shield, Lock, Pencil, Check, X } from "lucide-react";
+import Link from "next/link";
+import { User, Shield, Lock, Pencil, Check, X, Bell } from "lucide-react";
 
 interface PatientProfile {
   id: string;
@@ -211,6 +212,22 @@ export default function PatientProfilePage() {
               )}
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Notification settings link */}
+      <Card>
+        <CardContent className="pt-5">
+          <Link
+            href="/patient/profile/notifications"
+            className="flex items-center justify-between text-sm hover:text-primary transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-muted-foreground" />
+              Notification Settings
+            </span>
+            <span className="text-muted-foreground">→</span>
+          </Link>
         </CardContent>
       </Card>
 
