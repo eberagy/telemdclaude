@@ -90,6 +90,16 @@ enum NoteStatus {
   SIGNED
 }
 
+enum VitalType {
+  BP_SYSTOLIC
+  BP_DIASTOLIC
+  WEIGHT_LB
+  BLOOD_GLUCOSE_MGDL
+  MOOD_SCORE
+  O2_SAT_PERCENT
+  HEART_RATE_BPM
+}
+
 // ============================================================
 // PRACTICE (Tenant root)
 // ============================================================
@@ -129,6 +139,7 @@ model Practice {
   evidenceLinks    EvidenceLink[]
   auditLogs        AuditLog[]
   invites          PracticeInvite[]
+  employerGroups   EmployerGroup[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -298,8 +309,11 @@ model PatientProfile {
   state       String @default("PA")
   isActive    Boolean @default(true)
 
-  appointments Appointment[]
-  messages     Message[]
+  appointments    Appointment[]
+  messages        Message[]
+  vitals          PatientVital[]
+  employerGroupId String?
+  employerGroup   EmployerGroup? @relation(fields: [employerGroupId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -571,4 +585,50 @@ model SlotLock {
 
   @@unique([clinicianId, slotStart])
   @@index([expiresAt])
+}
+
+// ============================================================
+// EMPLOYER GROUPS (B2B2C channel)
+// ============================================================
+
+model EmployerGroup {
+  id          String  @id @default(cuid())
+  practiceId  String
+  name        String
+  code        String  @unique // employees enter this to enroll
+  description String?
+
+  // Coverage settings
+  coveredVisitsCap Int?    // null = unlimited covered visits per patient per year
+  discountPercent  Int     @default(100) // 100 = fully covered, 50 = 50% off
+  isActive         Boolean @default(true)
+
+  practice Practice         @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  patients PatientProfile[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([practiceId])
+}
+
+// ============================================================
+// PATIENT VITALS (RPM — self-reported)
+// ============================================================
+
+model PatientVital {
+  id            String    @id @default(cuid())
+  patientId     String
+  practiceId    String
+  type          VitalType
+  value         Float
+  unit          String    // e.g. "mmHg", "lbs", "mg/dL", "bpm", "%"
+  notes         String?
+  recordedAt    DateTime  @default(now())
+  appointmentId String?   // optionally linked to a visit
+
+  patient PatientProfile @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, type])
+  @@index([patientId, recordedAt])
 }

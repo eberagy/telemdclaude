@@ -20,7 +20,11 @@ export async function GET(_req: NextRequest) {
 
     const patient = await prisma.patientProfile.findUnique({
       where: { clerkUserId: userId },
-      select: { id: true },
+      select: {
+        id: true,
+        employerGroupId: true,
+        employerGroup: { select: { name: true, discountPercent: true, coveredVisitsCap: true } },
+      },
     });
 
     return NextResponse.json({
@@ -31,6 +35,7 @@ export async function GET(_req: NextRequest) {
       clinicianId: member?.clinician?.id ?? null,
       seatStatus: member?.clinician?.seatStatus ?? null,
       patientId: patient?.id ?? null,
+      employerGroup: patient?.employerGroup ?? null,
     });
   } catch (err) {
     console.error("[me]", err);

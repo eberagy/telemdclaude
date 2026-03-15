@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, MessageSquare, User } from "lucide-react";
+import { Calendar, MessageSquare, User, Activity } from "lucide-react";
 
 export function PatientNavLinks({ variant }: { variant: "desktop" | "mobile" }) {
   const pathname = usePathname();
@@ -42,6 +42,7 @@ export function PatientNavLinks({ variant }: { variant: "desktop" | "mobile" }) 
   const navItems = [
     { href: "/patient/appointments", label: "Appointments", icon: Calendar },
     { href: "/patient/messages", label: "Messages", icon: MessageSquare },
+    { href: "/patient/health", label: "Health", icon: Activity },
     { href: "/patient/profile", label: "Profile", icon: User },
   ];
 

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, MessageSquare, User, Shield } from "lucide-react";
+import { ArrowLeft, Calendar, MessageSquare, User, Shield, Activity, Heart, Scale, Droplets } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 
 interface Appointment {
@@ -27,6 +27,34 @@ interface PatientData {
   appointments: Appointment[];
 }
 
+interface Vital {
+  id: string;
+  type: string;
+  value: number;
+  unit: string;
+  recordedAt: string;
+}
+
+const VITAL_ICONS: Record<string, React.ElementType> = {
+  BP_SYSTOLIC: Heart,
+  BP_DIASTOLIC: Heart,
+  WEIGHT_LB: Scale,
+  BLOOD_GLUCOSE_MGDL: Droplets,
+  MOOD_SCORE: Activity,
+  O2_SAT_PERCENT: Activity,
+  HEART_RATE_BPM: Activity,
+};
+
+const VITAL_LABELS: Record<string, string> = {
+  BP_SYSTOLIC: "BP Systolic",
+  BP_DIASTOLIC: "BP Diastolic",
+  WEIGHT_LB: "Weight",
+  BLOOD_GLUCOSE_MGDL: "Glucose",
+  MOOD_SCORE: "Mood",
+  O2_SAT_PERCENT: "O₂ Sat",
+  HEART_RATE_BPM: "Heart Rate",
+};
+
 const STATUS_COLORS: Record<string, string> = {
   CONFIRMED: "bg-green-100 text-green-800",
   COMPLETED: "bg-gray-100 text-gray-700",
@@ -39,6 +67,7 @@ export default function ClinicianPatientDetailPage() {
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [vitals, setVitals] = useState<Vital[]>([]);
 
   useEffect(() => {
     // Load patient appointments to build the record
@@ -66,6 +95,11 @@ export default function ClinicianPatientDetailPage() {
           appointments: data.appointments,
         });
         setLoading(false);
+        // Also fetch vitals
+        fetch(`/api/patients/${id}/vitals?limit=20`)
+          .then((r) => r.json())
+          .then((d) => setVitals(d.vitals ?? []))
+          .catch(() => {});
       })
       .catch(() => { setNotFound(true); setLoading(false); });
   }, [id]);
@@ -174,6 +208,37 @@ export default function ClinicianPatientDetailPage() {
           ))}
         </div>
       </div>
+
+      {/* Patient Vitals (RPM) */}
+      {vitals.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            Vitals / Remote Monitoring
+          </h2>
+          <Card>
+            <CardContent className="p-4 divide-y">
+              {vitals.slice(0, 10).map((v) => {
+                const VIcon = VITAL_ICONS[v.type] ?? Activity;
+                return (
+                  <div key={v.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <VIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span>{VITAL_LABELS[v.type] ?? v.type}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-semibold">{v.value} {v.unit}</span>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {new Date(v.recordedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Messaging */}
       <Card>
