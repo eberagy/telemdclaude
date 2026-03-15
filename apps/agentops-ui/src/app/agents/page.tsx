@@ -77,6 +77,11 @@ export default function AgentsPage() {
                 key={a.id}
                 className="bg-gray-900 border border-gray-800 rounded-lg p-5 flex items-start justify-between gap-6"
               >
+                <Link href={`/agents/${a.id}/scorecard`} className="self-start">
+                  <span className="text-xs text-violet-400 hover:text-violet-300 underline-offset-2 hover:underline">
+                    Scorecard →
+                  </span>
+                </Link>
                 <div className="space-y-1.5 flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold">{a.displayName}</span>

@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   CheckCircle,
   Clock,
+  CalendarClock,
 } from "lucide-react";
 import { IntakeCallPanel } from "@/components/intake/IntakeCallPanel";
 import { VideoVisitPanel } from "@/components/visit/VideoVisitPanel";
@@ -102,6 +103,12 @@ export default function PatientAppointmentDetailPage({
   const [comment, setComment] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<{ slotStart: string; slotEnd: string }[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<{ slotStart: string; slotEnd: string } | null>(null);
+  const [rescheduling, setRescheduling] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState<string | null>(null);
+  const [rescheduleSuccess, setRescheduleSuccess] = useState(false);
 
   useEffect(() => {
     fetch(`/api/appointments/${id}`)
@@ -137,6 +144,53 @@ export default function PatientAppointmentDetailPage({
       es.close();
     };
   }, [id]);
+
+  const openReschedule = () => {
+    setShowReschedule(true);
+    setSelectedSlot(null);
+    setRescheduleError(null);
+    if (!appointment) return;
+    const slug = appointment.practice.slug;
+    // Find appointmentTypeId from the appointment — we need to re-fetch availability
+    fetch(`/api/appointments/${id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const appt = data.appointment;
+        if (!appt?.appointmentType?.id) return;
+        return fetch(
+          `/api/availability?practiceSlug=${slug}&appointmentTypeId=${appt.appointmentType.id}`
+        );
+      })
+      .then((r) => (r ? r.json() : null))
+      .then((data) => {
+        if (data?.slots) setAvailableSlots(data.slots);
+      })
+      .catch(() => {});
+  };
+
+  const submitReschedule = async () => {
+    if (!selectedSlot) return;
+    setRescheduling(true);
+    setRescheduleError(null);
+    const res = await fetch(`/api/appointments/${id}/reschedule`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(selectedSlot),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setRescheduleError(data.error ?? "Failed to reschedule.");
+      setRescheduling(false);
+      return;
+    }
+    setRescheduleSuccess(true);
+    setShowReschedule(false);
+    // Refresh appointment data
+    fetch(`/api/appointments/${id}`)
+      .then((r) => r.json())
+      .then((d) => setAppointment(d.appointment));
+    setRescheduling(false);
+  };
 
   const handlePayNow = async () => {
     const res = await fetch("/api/stripe/checkout", {
@@ -315,7 +369,22 @@ export default function PatientAppointmentDetailPage({
                 Join Video Visit
               </Button>
             )}
+
+            {(appointment.status === "CONFIRMED" || appointment.status === "INTAKE_PENDING") && (
+              <Button variant="outline" onClick={openReschedule}>
+                <CalendarClock className="h-4 w-4 mr-2" />
+                Reschedule
+              </Button>
+            )}
           </div>
+
+          {/* Reschedule success banner */}
+          {rescheduleSuccess && (
+            <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 p-3 rounded-md text-sm">
+              <CheckCircle className="h-4 w-4 flex-shrink-0" />
+              Your appointment has been rescheduled.
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -341,6 +410,69 @@ export default function PatientAppointmentDetailPage({
           role="participant"
           onEnd={() => setActivePanel(null)}
         />
+      )}
+
+      {/* Reschedule panel */}
+      {showReschedule && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 text-primary" />
+              Pick a New Time
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {availableSlots.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Loading available slots…
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
+                {availableSlots.map((slot) => (
+                  <button
+                    key={slot.slotStart}
+                    type="button"
+                    onClick={() => setSelectedSlot(slot)}
+                    className={`text-xs px-3 py-2 rounded-md border text-left transition-colors ${
+                      selectedSlot?.slotStart === slot.slotStart
+                        ? "border-primary bg-primary/10 text-primary font-medium"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {new Date(slot.slotStart).toLocaleString(undefined, {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {rescheduleError && (
+              <p className="text-sm text-destructive">{rescheduleError}</p>
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowReschedule(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={!selectedSlot || rescheduling}
+                onClick={submitReschedule}
+              >
+                {rescheduling ? "Rescheduling…" : "Confirm Reschedule"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* After-visit summary (only shown when practice enables it) */}

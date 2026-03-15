@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, Users, MessageSquare, Clock } from "lucide-react";
+import { Calendar, Users, MessageSquare, Clock, FileText } from "lucide-react";
 
 const navItems = [
   { href: "/clinician/schedule", label: "Schedule", icon: Calendar },
   { href: "/clinician/patients", label: "Patients", icon: Users },
   { href: "/clinician/messages", label: "Messages", icon: MessageSquare },
+  { href: "/clinician/notes", label: "Notes", icon: FileText },
   { href: "/clinician/availability", label: "Availability", icon: Clock },
 ];
 
